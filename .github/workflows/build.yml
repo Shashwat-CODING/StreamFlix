@@ -1,7 +1,7 @@
 name: Build & Release StreamFlix
 
 on:
-  workflow_dispatch: # allows manual trigger from GitHub Actions tab
+  workflow_dispatch: # manual trigger from Actions tab
 
 jobs:
   build:
@@ -21,13 +21,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build app
-        run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            npm run build:linux
-          else
-            npm run build:win
-          fi
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run build:linux
+
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win
 
       - name: Move artifacts to builds folder
         run: |
