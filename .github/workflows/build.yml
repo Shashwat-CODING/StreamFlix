@@ -1,4 +1,4 @@
-name: Build & Release StreamFlix
+name: Build StreamFlix
 
 on:
   workflow_dispatch: # manual trigger from Actions tab
@@ -39,24 +39,3 @@ jobs:
         with:
           name: StreamFlix-${{ matrix.os }}
           path: builds/${{ matrix.os }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: builds
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: manual-${{ github.run_number }}
-          name: Manual Release ${{ github.run_number }}
-          files: builds/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
