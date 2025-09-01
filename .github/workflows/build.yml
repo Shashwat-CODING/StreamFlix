@@ -1,9 +1,7 @@
 name: Build & Release StreamFlix
 
 on:
-  push:
-    tags:
-      - "v*" # triggers on version tags (e.g., v1.0.0)
+  workflow_dispatch: # allows manual trigger from GitHub Actions tab
 
 jobs:
   build:
@@ -57,8 +55,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: manual-${{ github.run_number }}
+          name: Manual Release ${{ github.run_number }}
           files: builds/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
