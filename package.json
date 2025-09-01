@@ -6,15 +6,15 @@
     "author": "Shashwat",
     "license": "MIT",
     "scripts": {
-        "start": "electron .",
-        "dev": "electron . --dev",
-        "build": "electron-builder",
-        "build:win": "electron-builder --win",
-        "build:mac": "electron-builder --mac",
-        "build:linux": "electron-builder --linux",
-        "pack": "electron-builder --dir",
-        "dist": "electron-builder --publish=never"
-    },
+  "start": "electron .",
+  "dev": "electron . --dev",
+  "build": "electron-builder",
+  "build:win": "electron-builder --win --publish=never",
+  "build:mac": "electron-builder --mac --publish=never",
+  "build:linux": "electron-builder --linux --publish=never",
+  "pack": "electron-builder --dir",
+  "dist": "electron-builder --publish=never"
+},
     "build": {
         "appId": "com.shashwat.StreamFlix",
         "productName": "StreamFlix",
