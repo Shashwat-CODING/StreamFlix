@@ -1,17 +1,19 @@
-name: Build StreamFlix
+name: Build & Commit StreamFlix
 
 on:
-  workflow_dispatch: # manual trigger from Actions tab
+  workflow_dispatch: # manual run
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest] # no macOS
+        os: [ubuntu-latest, windows-latest] # skip macOS
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true  # needed for pushing back
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,13 +31,22 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: npm run build:win
 
-      - name: Move artifacts to builds folder
+      - name: Move build outputs
         run: |
           mkdir -p builds/${{ matrix.os }}
           mv dist/* builds/${{ matrix.os }}/ || true
 
-      - name: Upload artifacts
+      - name: Upload build folder (for debugging)
         uses: actions/upload-artifact@v4
         with:
           name: StreamFlix-${{ matrix.os }}
           path: builds/${{ matrix.os }}
+
+      - name: Commit & Push builds
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add builds/
+          git commit -m "Add builds for ${{ matrix.os }} (run ${{ github.run_number }})" || echo "No changes to commit"
+          git push origin main
