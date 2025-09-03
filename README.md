@@ -148,4 +148,4 @@ If you encounter any issues or have questions:
 
 ---
 
-**Made with ❤️ by Shashwat**
+**Made with ❤️ using Flutter**
