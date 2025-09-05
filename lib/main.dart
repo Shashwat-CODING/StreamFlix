@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:chewie/chewie.dart';
 import 'package:chewie/src/cupertino/cupertino_controls.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
 import 'services/media_service.dart';
 import 'services/tmdb_service.dart';
+import 'player/stream_resolution.dart';
+import 'player/server_direct.dart';
+import 'player/server_hlstr.dart';
+import 'player/server_vidsrc.dart';
 
 void main() {
   runApp(const StreamFlixApp());
@@ -1015,30 +1019,122 @@ class _PlaybackPageState extends State<PlaybackPage> {
   ChewieController? _chewieController;
   bool _initError = false;
   bool _isLoading = true;
-  WebViewController? _webController; // hidden for fallback capture
   bool _hlsCaptured = false;
+  List<_ServerOption> _servers = [];
+  _ServerOption? _currentServer;
 
   @override
   void initState() {
     super.initState();
+    _prepareServersAndStart();
+  }
+
+  void _prepareServersAndStart() {
+    _servers = [];
     if (widget.url.isNotEmpty) {
-      _initializeDirect(widget.url, referer: widget.referer);
+      _servers.add(_ServerOption(
+        name: 'Server1',
+        type: _ServerType.direct,
+        directUrl: widget.url,
+        referer: widget.referer,
+      ));
+    }
+    if (widget.tmdbId != null) {
+      _servers.add(_ServerOption(
+        name: 'Server2',
+        type: _ServerType.hlstr,
+        tmdbOrImdbId: widget.tmdbId.toString(),
+      ));
+      _servers.add(_ServerOption(
+        name: 'Server3',
+        type: _ServerType.vidsrc,
+      ));
+    }
+    if (_servers.isEmpty) {
+      setState(() { _initError = true; _isLoading = false; });
+      return;
+    }
+    _switchToServer(_servers.first);
+  }
+
+  Future<void> _switchToServer(_ServerOption server) async {
+    _disposePlayers(keepWebView: false);
+    setState(() {
+      _currentServer = server;
+      _isLoading = true;
+      _initError = false;
+      _hlsCaptured = false;
+    });
+    try {
+      if (server.type == _ServerType.direct) {
+        await _initializeDirect(server.directUrl!, referer: server.referer);
+      } else if (server.type == _ServerType.hlstr) {
+        await _playViaHlstr(server.tmdbOrImdbId!);
+      } else if (server.type == _ServerType.vidsrc) {
+        // Try new API flow; then HTML scrape fallback
+        try {
+          final vidsrc = VidsrcServerResolver();
+          final res = await vidsrc.resolveViaApi(
+            tmdbId: widget.tmdbId!,
+            mediaType: widget.mediaType ?? 'movie',
+          );
+          await _setupPlayer(res);
+        } catch (_) {
+          final vidsrc = VidsrcServerResolver();
+          final embedUrl = vidsrc.buildEmbedUrl(tmdbId: widget.tmdbId!, mediaType: widget.mediaType ?? 'movie');
+          final res = await vidsrc.resolveViaHtml(embedUrl: embedUrl);
+          await _setupPlayer(res);
+        }
+      }
+    } catch (_) {
+      _handleServerFailure(server);
+    }
+  }
+
+  void _handleServerFailure(_ServerOption server) {
+    // Remove failed server and try next
+    _servers.removeWhere((s) => s.name == server.name);
+    if (_servers.isNotEmpty) {
+      _switchToServer(_servers.first);
     } else {
-      _fallbackToVidsrc();
+      setState(() { _initError = true; _isLoading = false; });
     }
   }
 
   Future<void> _initializeDirect(String url, {String? referer}) async {
     try {
+      final res = await DirectServerResolver().resolve(url: url, referer: referer);
+      await _setupPlayer(res);
+    } catch (_) {
+      setState(() { _initError = true; _isLoading = false; });
+      if (_currentServer != null) _handleServerFailure(_currentServer!);
+    }
+  }
+
+  static const String _userAgentFallback = 'Mozilla/5.0 (Linux; Android 12; Flutter) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
+
+  String? get _embedUrlFallback {
+    if (widget.tmdbId == null) return null;
+    final typePath = (widget.mediaType == 'tv') ? 'tv' : 'movie';
+    return 'https://vidsrc.cc/v2/embed/$typePath/${widget.tmdbId}?autoPlay=true';
+  }
+
+  // Removed WebView-based vidsrc fallback
+
+  Future<void> _playViaHlstr(String id) async {
+    try {
+      final res = await HlstrServerResolver().resolve(id: id);
+      await _setupPlayer(res);
+    } catch (_) {
+      setState(() { _initError = true; _isLoading = false; });
+      if (_currentServer != null) _handleServerFailure(_currentServer!);
+    }
+  }
+
+  Future<void> _setupPlayer(ResolvedStream res) async {
       _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(url),
-        httpHeaders: {
-          'User-Agent': _userAgentFallback,
-          'Accept': '*/*',
-          'Origin': 'https://vidsrc.cc',
-          'Referer': referer ?? 'https://vidsrc.cc',
-          'Connection': 'keep-alive',
-        },
+      Uri.parse(res.hlsUrl),
+      httpHeaders: res.headers,
       );
       await _videoController!.initialize();
       if (!mounted) return;
@@ -1060,117 +1156,53 @@ class _PlaybackPageState extends State<PlaybackPage> {
           backgroundColor: Colors.grey.shade300,
         ),
       );
-      _isLoading = false;
-      setState(() {});
-    } catch (_) {
-      setState(() { _initError = true; _isLoading = false; });
-    }
-  }
-
-  static const String _userAgentFallback = 'Mozilla/5.0 (Linux; Android 12; Flutter) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
-
-  String? get _embedUrlFallback {
-    if (widget.tmdbId == null) return null;
-    final typePath = (widget.mediaType == 'tv') ? 'tv' : 'movie';
-    return 'https://vidsrc.cc/v2/embed/$typePath/${widget.tmdbId}?autoPlay=true';
-  }
-
-  Future<void> _fallbackToVidsrc() async {
-    final embed = _embedUrlFallback;
-    if (embed == null) {
-      setState(() { _initError = true; _isLoading = false; });
-      return;
-    }
-    
-    setState(() { _isLoading = true; _initError = false; });
-    
-    // Use the working approach from the separate player
-    final webController = WebViewController();
-    webController.setUserAgent(_userAgentFallback);
-    webController.setJavaScriptMode(JavaScriptMode.unrestricted);
-    webController.setBackgroundColor(Colors.transparent);
-    
-    webController.addJavaScriptChannel('HLS', onMessageReceived: (JavaScriptMessage message) async {
-      if (_hlsCaptured) return;
-      final capturedUrl = message.message;
-      if (capturedUrl.contains('.m3u8')) {
-        _hlsCaptured = true;
-        await _initializeDirect(capturedUrl, referer: embed);
-        if (mounted) setState(() {});
-      }
-    });
-    
-    webController.setNavigationDelegate(NavigationDelegate(onPageFinished: (url) async {
-      const js = r"""
-        (function(){
-          if (window.__hlsHooked) return; window.__hlsHooked = true;
-          function send(u){ try { HLS.postMessage(u); } catch(e) {} }
-          const origFetch = window.fetch;
-          window.fetch = async function(){
-            try{
-              const req = arguments[0];
-              const url = (typeof req === 'string') ? req : (req && req.url ? req.url : '');
-              if (url && url.indexOf('.m3u8') !== -1) { send(url); }
-            } catch(e){}
-            return origFetch.apply(this, arguments);
-          };
-          const origOpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function(method, url){
-            try { if (typeof url === 'string' && url.indexOf('.m3u8') !== -1) { send(url); } } catch(e){}
-            return origOpen.apply(this, arguments);
-          };
-        })();
-      """;
-      try { await webController.runJavaScript(js); } catch (_) {}
-    }));
-
-    await webController.loadRequest(Uri.parse(embed), headers: const {
-      'User-Agent': _userAgentFallback,
-      'Referer': 'https://vidsrc.cc',
-      'Origin': 'https://vidsrc.cc',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
-
-    _webController = webController;
-
-    // Also try direct HTML fetch as backup
-    Future.delayed(const Duration(seconds: 6), () async {
-      if (mounted && !_hlsCaptured) {
-        try {
-          final response = await http.get(Uri.parse(embed), headers: const {
-            'User-Agent': _userAgentFallback,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-          });
-          
-          if (response.statusCode == 200) {
-            final html = response.body;
-            final regex = RegExp(r'https://[^"\s]+\.m3u8[^"\s]*');
-            final match = regex.firstMatch(html);
-            if (match != null && !_hlsCaptured) {
-              _hlsCaptured = true;
-              await _initializeDirect(match.group(0)!, referer: embed);
-            }
-          }
-        } catch (_) {}
-        
-        if (!_hlsCaptured) {
-          _initError = true;
-          _isLoading = false;
-          if (mounted) setState(() {});
-        }
-      }
-    });
+    setState(() { _isLoading = false; });
   }
 
   @override
   void dispose() {
-    _chewieController?.dispose();
-    _videoController?.dispose();
+    _disposePlayers(keepWebView: false);
     super.dispose();
+  }
+
+  void _disposePlayers({required bool keepWebView}) {
+    _chewieController?.dispose();
+    _chewieController = null;
+    _videoController?.dispose();
+    _videoController = null;
+    // No WebView retained
+  }
+
+  Widget _buildServerButton(_ServerOption s, {bool compact = false}) {
+    final bool isActive = (_currentServer?.name == s.name);
+    final Widget label = Text(
+      s.name,
+      style: TextStyle(fontWeight: isActive ? FontWeight.w700 : FontWeight.w600),
+    );
+    if (isActive) {
+      return ElevatedButton(
+        onPressed: () => _switchToServer(s),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          padding: compact ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8) : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+          ),
+        ),
+        child: label,
+      );
+    }
+    return OutlinedButton(
+      onPressed: () => _switchToServer(s),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: Theme.of(context).dividerColor, width: 1.5),
+        padding: compact ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8) : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: label,
+    );
   }
 
   @override
@@ -1188,30 +1220,42 @@ class _PlaybackPageState extends State<PlaybackPage> {
                         children: [
                           const Text('Failed to load stream'),
                           const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              if (widget.url.isEmpty) {
-                                _fallbackToVidsrc();
-                              } else {
-                                _initializeDirect(widget.url, referer: widget.referer);
-                              }
-                            },
-                            child: const Text('Retry'),
-                          ),
+                          if (_servers.isNotEmpty)
+                            Wrap(spacing: 8, runSpacing: 8, children: [
+                              for (final s in _servers) _buildServerButton(s, compact: true),
+                            ])
                         ],
                       ),
                     )
-                  : Stack(children: [
-                      const Center(child: CircularProgressIndicator()),
-                      if (_webController != null)
-                        Positioned.fill(
-                          child: Offstage(
-                            offstage: true,
-                            child: WebViewWidget(controller: _webController!),
-                          ),
-                        ),
-                    ]))
+                  : const Center(child: CircularProgressIndicator()))
               : Chewie(controller: _chewieController!),
+        ),
+        if (_servers.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'SERVERS',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.4,
+                        ) ?? const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final s in _servers) _buildServerButton(s),
+                  ],
+                ),
+              ],
+            ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -1230,202 +1274,16 @@ class _PlaybackPageState extends State<PlaybackPage> {
   }
 }
 
-class VidsrcFallbackPage extends StatefulWidget {
-  const VidsrcFallbackPage({super.key, required this.title, required this.mediaType, required this.tmdbId});
-  final String title;
-  final String mediaType; // 'movie' | 'tv'
-  final int tmdbId;
+enum _ServerType { direct, hlstr, vidsrc }
 
-  @override
-  State<VidsrcFallbackPage> createState() => _VidsrcFallbackPageState();
+class _ServerOption {
+  _ServerOption({required this.name, required this.type, this.directUrl, this.referer, this.tmdbOrImdbId});
+  final String name;
+  final _ServerType type;
+  final String? directUrl;
+  final String? referer;
+  final String? tmdbOrImdbId;
 }
 
-class _VidsrcFallbackPageState extends State<VidsrcFallbackPage> {
-  static const String _userAgent = 'Mozilla/5.0 (Linux; Android 12; Flutter) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
-  WebViewController? _webController;
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  bool _isLoading = true;
-  bool _initializationError = false;
-  bool _hlsCaptured = false;
+// Removed VidsrcFallbackPage (WebView-based) as WebView is no longer used
 
-  String get _embedUrl {
-    final typePath = (widget.mediaType == 'tv') ? 'tv' : 'movie';
-    return 'https://vidsrc.cc/v2/embed/$typePath/${widget.tmdbId}?autoPlay=true';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _setupHiddenWebViewAndLoad();
-  }
-
-  Future<String?> _extractHlsUrlFallback() async {
-    try {
-      final resp = await http.get(
-        Uri.parse(_embedUrl),
-        headers: const {
-          'User-Agent': _userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-        },
-      );
-      if (resp.statusCode == 200) {
-        final html = resp.body;
-        final regex = RegExp(r'https://[^"\s]+\.m3u8[^"\s]*');
-        final match = regex.firstMatch(html);
-        if (match != null) return match.group(0);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  Future<void> _setupHiddenWebViewAndLoad() async {
-    setState(() => _isLoading = true);
-    final controller = WebViewController()
-      ..setUserAgent(_userAgent);
-    controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    controller.setBackgroundColor(Colors.transparent);
-    controller.addJavaScriptChannel('HLS', onMessageReceived: (JavaScriptMessage message) async {
-      if (_hlsCaptured) return;
-      final capturedUrl = message.message;
-      if (capturedUrl.contains('.m3u8')) {
-        _hlsCaptured = true;
-        await _initializePlayer(capturedUrl);
-        if (mounted) setState(() {});
-      }
-    });
-    controller.setNavigationDelegate(NavigationDelegate(onPageFinished: (url) async {
-      const js = r"""
-        (function(){
-          if (window.__hlsHooked) return; window.__hlsHooked = true;
-          function send(u){ try { HLS.postMessage(u); } catch(e) {} }
-          const origFetch = window.fetch;
-          window.fetch = async function(){
-            try{
-              const req = arguments[0];
-              const url = (typeof req === 'string') ? req : (req && req.url ? req.url : '');
-              if (url && url.indexOf('.m3u8') !== -1) { send(url); }
-            } catch(e){}
-            return origFetch.apply(this, arguments);
-          };
-          const origOpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function(method, url){
-            try { if (typeof url === 'string' && url.indexOf('.m3u8') !== -1) { send(url); } } catch(e){}
-            return origOpen.apply(this, arguments);
-          };
-        })();
-      """;
-      try { await controller.runJavaScript(js); } catch (_) {}
-    }));
-
-    await controller.loadRequest(Uri.parse(_embedUrl), headers: const {
-      'User-Agent': _userAgent,
-      'Referer': 'https://vidsrc.cc',
-      'Origin': 'https://vidsrc.cc',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
-    _webController = controller;
-
-    Future.delayed(const Duration(seconds: 6), () async {
-      if (mounted && !_hlsCaptured) {
-        final fallbackUrl = await _extractHlsUrlFallback();
-        if (fallbackUrl != null && !_hlsCaptured) {
-          _hlsCaptured = true;
-          await _initializePlayer(fallbackUrl);
-        } else {
-          _initializationError = true;
-          if (mounted) setState(() {});
-        }
-      }
-    });
-  }
-
-  Future<void> _initializePlayer(String hlsUrl) async {
-    try {
-      _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(hlsUrl),
-        httpHeaders: {
-          'User-Agent': _userAgent,
-          'Accept': '*/*',
-          'Origin': 'https://vidsrc.cc',
-          'Referer': _embedUrl,
-          'Connection': 'keep-alive',
-        },
-      );
-      await _videoController!.initialize();
-      _chewieController = ChewieController(
-        videoPlayerController: _videoController!,
-        autoPlay: true,
-        looping: true,
-        allowFullScreen: true,
-        allowMuting: true,
-        allowPlaybackSpeedChanging: true,
-        materialProgressColors: ChewieProgressColors(
-          playedColor: Theme.of(context).colorScheme.primary,
-          handleColor: Theme.of(context).colorScheme.primary,
-          bufferedColor: Colors.grey.shade400,
-          backgroundColor: Colors.grey.shade300,
-        ),
-      );
-      _isLoading = false;
-      if (mounted) setState(() {});
-    } catch (_) {
-      _initializationError = true;
-      _isLoading = false;
-      if (mounted) setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _chewieController?.dispose();
-    _videoController?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: Stack(
-        children: [
-          Center(
-            child: _isLoading
-                ? const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Extracting stream...'),
-                    ],
-                  )
-                : _initializationError
-                    ? const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('Failed to load stream'),
-                      )
-                    : (_chewieController == null || _videoController == null || !_videoController!.value.isInitialized)
-                        ? const CircularProgressIndicator()
-                        : AspectRatio(
-                            aspectRatio: _videoController!.value.aspectRatio == 0 ? 16 / 9 : _videoController!.value.aspectRatio,
-                            child: Chewie(controller: _chewieController!),
-                          ),
-          ),
-          if (_webController != null)
-            Offstage(
-              offstage: true,
-              child: SizedBox(
-                height: 1,
-                width: 1,
-                child: WebViewWidget(controller: _webController!),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
