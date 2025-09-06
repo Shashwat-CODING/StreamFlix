@@ -86,6 +86,10 @@
         <img src="screenshots/mob3.jpeg" width="250" alt="Mobile Player"/>
         <br><b>🎥 Video Player</b>
       </td>
+      <td align="center">
+        <img src="screenshots/mob4.jpeg" width="250" alt="Mobile Player"/>
+        <br><b>Movie details</b>
+      </td>
     </tr>
   </table>
 </div>
