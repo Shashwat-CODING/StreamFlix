@@ -52,17 +52,13 @@
 
 ### 🎯 Core Features
 - **🎥 HD Streaming**: High-quality video playback with adaptive bitrate streaming
-- **🔍 Smart Search**: Advanced search with filters, suggestions, and real-time results
-- **📚 Content Discovery**: Personalized recommendations and trending content
-- **🌐 Multi-language**: Support for 20+ languages with subtitle options
+- **🔍 Smart Search**: Advanced search, and real-time results
+- **📚 Content Discovery**: trending content
 - **📱 Responsive Design**: Seamless experience across all screen sizes
 
 ### 🎨 User Experience
 - **🌙 Dynamic Theming**: Auto dark/light mode with custom theme options
-- **🎮 Advanced Player**: Picture-in-picture, playback speed control, and quality selection
-- **💾 Offline Support**: Download content for offline viewing
-- **🔔 Notifications**: Get notified about new episodes and releases
-- **👤 User Profiles**: Multiple user profiles with viewing history
+- **🎮 Advanced Player**: playback speed control
 
 ### 🔧 Technical Features
 - **⚡ Performance**: Optimized rendering with 60+ FPS animations
@@ -79,30 +75,16 @@
   <table>
     <tr>
       <td align="center">
-        <img src="screenshots/home_mobile.png" width="250" alt="Mobile Home"/>
+        <img src="screenshots/mob1.jpeg" width="250" alt="Mobile Home"/>
         <br><b>📱 Mobile Home</b>
       </td>
       <td align="center">
-        <img src="screenshots/search_mobile.png" width="250" alt="Mobile Search"/>
+        <img src="screenshots/mob2.jpeg" width="250" alt="Mobile Search"/>
         <br><b>🔍 Smart Search</b>
       </td>
       <td align="center">
-        <img src="screenshots/player_mobile.png" width="250" alt="Mobile Player"/>
+        <img src="screenshots/mob3.jpeg" width="250" alt="Mobile Player"/>
         <br><b>🎥 Video Player</b>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="screenshots/home_desktop.png" width="300" alt="Desktop Home"/>
-        <br><b>💻 Desktop Experience</b>
-      </td>
-      <td align="center">
-        <img src="screenshots/details_desktop.png" width="300" alt="Desktop Details"/>
-        <br><b>📄 Content Details</b>
-      </td>
-      <td align="center">
-        <img src="screenshots/profile_desktop.png" width="300" alt="Desktop Profile"/>
-        <br><b>👤 User Profile</b>
       </td>
     </tr>
   </table>
