@@ -113,7 +113,7 @@ Before you begin, ensure you have the following installed:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/streamflix.git
+   git clone https://github.com/Shashwat-CODING/streamflix.git
    cd streamflix
    ```
 
@@ -122,13 +122,7 @@ Before you begin, ensure you have the following installed:
    flutter pub get
    ```
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and configuration
-   ```
-
-4. **Run the application**
+3. **Run the application**
    ```bash
    # For development
    flutter run
@@ -146,15 +140,7 @@ Before you begin, ensure you have the following installed:
 
 1. Get your API keys:
    - [TMDB API Key](https://www.themoviedb.org/settings/api)
-   - [Streaming Service API](your-streaming-service-url)
 
-2. Create `.env` file:
-   ```env
-   TMDB_API_KEY=your_tmdb_api_key_here
-   STREAM_API_URL=your_streaming_api_url
-   ENABLE_ANALYTICS=true
-   DEBUG_MODE=false
-   ```
 
 ---
 
