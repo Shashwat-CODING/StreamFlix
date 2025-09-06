@@ -315,21 +315,6 @@ features:
   debug_mode: false
 ```
 
-### 🔐 Security Configuration
-
-```dart
-// lib/core/config/security_config.dart
-class SecurityConfig {
-  static const bool enableSSLPinning = true;
-  static const bool enableEncryption = true;
-  static const Duration tokenRefreshThreshold = Duration(minutes: 5);
-  
-  // Certificate pinning for production
-  static const List<String> pinnedCertificates = [
-    'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-  ];
-}
-```
 
 ---
 
@@ -465,27 +450,6 @@ CMD ["nginx", "-g", "daemon off;"]
 }
 ```
 
-#### Vercel
-```json
-{
-  "github": {
-    "silent": true
-  },
-  "builds": [
-    {
-      "src": "build/web/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
-}
-```
-
 ---
 
 ## 🤝 Contributing
@@ -556,28 +520,6 @@ Please report security vulnerabilities to: **security@streamflix.com**
 
 ---
 
-## 🗺️ Roadmap
-
-### 🎯 Version 2.1.0 (Current)
-- ✅ Multi-language subtitle support
-- ✅ Picture-in-picture mode
-- ✅ Enhanced search filters
-- ✅ Performance optimizations
-
-### 🚀 Version 2.2.0 (Next Quarter)
-- 🔄 AI-powered recommendations
-- 🎮 Chromecast integration
-- 📱 Widget support for home screen
-- 🌟 Social features (watch parties)
-
-### 🌟 Version 3.0.0 (2024)
-- 🎨 Complete UI redesign
-- 🔊 Spatial audio support
-- 📺 Live streaming capabilities
-- 🤖 Voice control integration
-
----
-
 
 
 ## 📄 License
@@ -625,7 +567,7 @@ Special thanks to all the amazing projects and people that made StreamFlix possi
 ---
 
 <div align="center">
-  <h3>🚀 Built with ❤️ and Flutter</h3>
+  <h3>🚀 Built with ❤️ by Shashwat</h3>
   <p>
     <a href="https://flutter.dev">
       <img src="https://img.shields.io/badge/Made%20with-Flutter-1f425f.svg" alt="Made with Flutter">
