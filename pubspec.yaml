@@ -36,9 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.2.2
   html: ^0.15.4
-  chewie: ^1.8.5
-  video_player: ^2.9.2
-  webview_flutter: ^4.8.0
+  media_kit: ^1.2.0
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
 
 dev_dependencies:
   flutter_test:

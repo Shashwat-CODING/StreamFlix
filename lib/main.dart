@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:chewie/chewie.dart';
-import 'package:chewie/src/cupertino/cupertino_controls.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:http/http.dart' as http;
 import 'services/media_service.dart';
 import 'services/tmdb_service.dart';
@@ -10,8 +9,12 @@ import 'player/stream_resolution.dart';
 import 'player/server_direct.dart';
 import 'player/server_hlstr.dart';
 import 'player/server_vidsrc.dart';
+import 'services/library_service.dart';
+import 'widgets/poster_tile.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   runApp(const StreamFlixApp());
 }
 
@@ -117,7 +120,64 @@ class StreamFlixApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
-      home: const HomePage(),
+      home: const RootShell(),
+    );
+  }
+}
+
+class RootShell extends StatefulWidget {
+  const RootShell({super.key});
+
+  @override
+  State<RootShell> createState() => _RootShellState();
+}
+
+class _RootShellState extends State<RootShell> {
+  int _index = 0; // 0 = home, 1 = search, 2 = library
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBody: true,
+      body: Stack(children: [
+        IndexedStack(
+          index: _index,
+          children: const [HomePage(), SearchPage(), LibraryPage()],
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 12,
+          child: SafeArea(
+            top: false,
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 700),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 8)),
+                  ],
+                ),
+                child: NavigationBar(
+                  height: 64,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  selectedIndex: _index,
+                  onDestinationSelected: (i) => setState(() => _index = i),
+                  destinations: const [
+                    NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+                    NavigationDestination(icon: Icon(Icons.search_outlined), selectedIcon: Icon(Icons.search), label: 'Search'),
+                    NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Library'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -127,6 +187,151 @@ class HomePage extends StatefulWidget {
 
   @override
   State<HomePage> createState() => _HomePageState();
+}
+
+class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TmdbService _tmdb = TmdbService();
+  final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+
+  List<TmdbItem> _results = [];
+  bool _loading = false;
+  String? _error;
+  int _searchPage = 1;
+  int _searchTotalPages = 1;
+  bool _loadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_results.isEmpty) return;
+    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _search() async {
+    final q = _searchCtrl.text.trim();
+    if (q.isEmpty) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+      _results = [];
+      _searchPage = 1;
+      _searchTotalPages = 1;
+    });
+    try {
+      final r = await _tmdb.searchMultiPaged(q, page: 1);
+      setState(() {
+        _results = r.items.where((e) => e.mediaType == 'movie').toList();
+        _searchPage = r.page;
+        _searchTotalPages = r.totalPages;
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore) return;
+    if (_searchCtrl.text.trim().isEmpty) return;
+    if (_searchPage >= _searchTotalPages) return;
+    setState(() { _loadingMore = true; });
+    try {
+      final nextPage = _searchPage + 1;
+      final r = await _tmdb.searchMultiPaged(_searchCtrl.text.trim(), page: nextPage);
+      setState(() {
+        _results.addAll(r.items.where((e) => e.mediaType == 'movie'));
+        _searchPage = r.page;
+        _searchTotalPages = r.totalPages;
+      });
+    } catch (_) {} finally {
+      setState(() { _loadingMore = false; });
+    }
+  }
+
+  void _openDetails(TmdbItem item) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsPage(item: item)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _searchCtrl,
+          autofocus: true,
+          onSubmitted: (_) => _search(),
+          decoration: const InputDecoration(hintText: 'Search for movies and TV shows...'),
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.search), onPressed: _search),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : (_results.isEmpty && _error == null)
+              ? const Center(child: Text('Search something to begin'))
+              : SingleChildScrollView(
+                  controller: _scrollCtrl,
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1400),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: MediaQuery.of(context).size.width >= 1500 ? 6 : MediaQuery.of(context).size.width >= 1100 ? 5 : MediaQuery.of(context).size.width >= 900 ? 4 : MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                            childAspectRatio: 0.66,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _results.length,
+                          itemBuilder: (ctx, i) {
+                            final it = _results[i];
+                            return PosterTile(item: it, onTap: () => _openDetails(it));
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        if (_searchPage < _searchTotalPages)
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: _loadingMore ? null : _loadMore,
+                              child: _loadingMore
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Text('Load more'),
+                            ),
+                          ),
+                      ]),
+                    ),
+                  ),
+                ),
+    );
+  }
 }
 
 class _HomePageState extends State<HomePage> {
@@ -301,7 +506,10 @@ class _HomePageState extends State<HomePage> {
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               controller: _scrollCtrl,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1600),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
                 if (_results.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -412,6 +620,41 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 12),
                 ]
                 else ...[
+                  // Hero header
+                  Container(
+                    width: double.infinity,
+                    height: 320,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.8),
+                          Colors.black.withOpacity(0.4),
+                          Colors.transparent,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Text(
+                          'Unlimited movies, TV shows, and more.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 46, fontWeight: FontWeight.w800),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Watch anywhere. It\'s free.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   Text('Popular on StreamFlix', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold) ?? const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   if (_popular.isEmpty)
@@ -425,67 +668,110 @@ class _HomePageState extends State<HomePage> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: MediaQuery.of(context).size.width < 500 ? 2 : 3,
-                        childAspectRatio: 0.65,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                        crossAxisCount: MediaQuery.of(context).size.width >= 1800
+                            ? 6
+                            : MediaQuery.of(context).size.width >= 1500
+                                ? 5
+                                : MediaQuery.of(context).size.width >= 1200
+                                    ? 4
+                                    : MediaQuery.of(context).size.width >= 800
+                                        ? 3
+                                        : 2,
+                        childAspectRatio: 0.66,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
                       ),
                       itemCount: _popular.length,
                       itemBuilder: (ctx, i) {
                         final it = _popular[i];
-                        return _PosterTile(item: it, onTap: () => _openDetails(it));
+                        return PosterTile(item: it, onTap: () => _openDetails(it));
                       },
                     ),
                 ],
-              ]),
+                  ]),
+                ),
+              ),
             ),
     );
   }
 }
 
-class _PosterTile extends StatelessWidget {
-  const _PosterTile({required this.item, required this.onTap});
-  final TmdbItem item;
-  final VoidCallback onTap;
+// moved to widgets/poster_tile.dart and services/library_service.dart
+
+class LibraryPage extends StatefulWidget {
+  const LibraryPage({super.key});
 
   @override
+  State<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends State<LibraryPage> {
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                color: Theme.of(context).brightness == Brightness.dark 
-                    ? const Color(0xFF1C1C1E) 
-                    : const Color(0xFFF2F2F7),
-                child: item.posterUrl != null
-                    ? Image.network(item.posterUrl!, fit: BoxFit.cover)
-                    : Center(child: Icon(
-                        Icons.movie_outlined, 
-                        color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
-                        size: 32,
-                      )),
+    final lib = LibraryService.instance;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Library')),
+      body: AnimatedBuilder(
+        animation: lib,
+        builder: (context, _) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1400),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Watch Later', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  if (lib.watchLater.isEmpty)
+                    Text('No items saved yet', style: Theme.of(context).textTheme.bodyMedium)
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: MediaQuery.of(context).size.width >= 1500 ? 6 : MediaQuery.of(context).size.width >= 1100 ? 5 : MediaQuery.of(context).size.width >= 900 ? 4 : MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                        childAspectRatio: 0.66,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: lib.watchLater.length,
+                      itemBuilder: (ctx, i) {
+                        final it = lib.watchLater[i];
+                        return PosterTile(item: it, onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsPage(item: it)));
+                        });
+                      },
+                    ),
+
+                  const SizedBox(height: 24),
+                  Text('History', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  if (lib.history.isEmpty)
+                    Text('Nothing watched yet', style: Theme.of(context).textTheme.bodyMedium)
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: MediaQuery.of(context).size.width >= 1500 ? 6 : MediaQuery.of(context).size.width >= 1100 ? 5 : MediaQuery.of(context).size.width >= 900 ? 4 : MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                        childAspectRatio: 0.66,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: lib.history.length,
+                      itemBuilder: (ctx, i) {
+                        final it = lib.history[i];
+                        return PosterTile(item: it, onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsPage(item: it)));
+                        });
+                      },
+                    ),
+                ]),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-        Text(item.mediaType.toUpperCase(), style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6))),
-      ]),
+          );
+        },
+      ),
     );
   }
 }
@@ -506,6 +792,8 @@ class _DetailsPageState extends State<DetailsPage> {
   MediaSummary? _summary;
   String? _error;
   bool _loading = false;
+  bool _resolvingPlay = false;
+  bool _initialPlayLoading = false;
   bool _loadingDetails = true;
   Map<String, dynamic>? _details;
 
@@ -557,6 +845,7 @@ class _DetailsPageState extends State<DetailsPage> {
   Future<void> _loadPlayback() async {
     setState(() {
       _loading = true;
+      _initialPlayLoading = true;
       _error = null;
       _info = null;
       _summary = null;
@@ -594,7 +883,10 @@ class _DetailsPageState extends State<DetailsPage> {
         ),
       );
     } finally {
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _initialPlayLoading = false;
+      });
     }
   }
 
@@ -638,7 +930,7 @@ class _DetailsPageState extends State<DetailsPage> {
     }
 
     setState(() {
-      _loading = true;
+      _resolvingPlay = true;
       _error = null;
     });
     try {
@@ -682,7 +974,7 @@ class _DetailsPageState extends State<DetailsPage> {
         );
       }
     } finally {
-      setState(() => _loading = false);
+      setState(() => _resolvingPlay = false);
     }
   }
 
@@ -779,6 +1071,8 @@ class _DetailsPageState extends State<DetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width > 1000;
+    
     return Scaffold(
       body: Stack(
         children: [
@@ -821,8 +1115,191 @@ class _DetailsPageState extends State<DetailsPage> {
           
           // Content
           SafeArea(
-            child: Column(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1400),
+                child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+              ),
+            ),
+          ),
+          if (_resolvingPlay)
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: false,
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: const Center(
+                    child: SizedBox(width: 56, height: 56, child: CircularProgressIndicator(color: Colors.white)),
+                  ),
+                ),
+              ),
+            ),
+          if (_initialPlayLoading)
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: false,
+                child: Container(
+                  color: Colors.black.withOpacity(0.8),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        Text(
+                          'Loading stream data...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Please wait while we prepare your content',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Poster
+          Container(
+            width: 300,
+            height: 450,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: _getPosterUrl() != null
+                  ? Image.network(_getPosterUrl()!, fit: BoxFit.cover)
+                  : Container(
+                      color: Colors.grey[800],
+                      child: const Center(
+                        child: Icon(Icons.movie, size: 64, color: Colors.white54),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 32),
+          // Details
+          Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Back button
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Title
+                Text(
+                  widget.item.title,
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Metadata row
+                _buildMetadataRow(),
+                const SizedBox(height: 24),
+                
+                // Overview
+                if (_details != null) ...[
+                  Text(
+                    'Overview',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _details!['overview'] ?? 'No overview available',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ] else if (_loadingDetails)
+                  const CircularProgressIndicator(color: Colors.white)
+                else
+                  const Text(
+                    'Failed to load details',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                
+                // Additional details
+                if (_details != null) _buildAdditionalDetails(),
+                
+                const Spacer(),
+                
+                // Action buttons
+                _buildActionButtons(),
+                const SizedBox(height: 16),
+                
+                // Language controls (if available)
+                if (_summary != null) _langControls(),
+                
+                // Error display
+                if (_error != null) _buildErrorDisplay(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Column(
+                  children: [
                 // App bar with back button
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -861,7 +1338,48 @@ class _DetailsPageState extends State<DetailsPage> {
                         const SizedBox(height: 16),
                         
                         // Rating and metadata
-                        Row(
+                _buildMetadataRow(),
+                const SizedBox(height: 24),
+                
+                // Overview
+                if (_details != null)
+                  Text(
+                    _details!['overview'] ?? 'No overview available',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  )
+                else if (_loadingDetails)
+                  const CircularProgressIndicator(color: Colors.white)
+                else
+                  const Text(
+                    'Failed to load details',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                
+                const Spacer(),
+                
+                // Action buttons
+                _buildActionButtons(),
+                const SizedBox(height: 16),
+                
+                // Language controls (if available)
+                if (_summary != null) _langControls(),
+                
+                // Error display
+                if (_error != null) _buildErrorDisplay(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetadataRow() {
+    return Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -900,7 +1418,17 @@ class _DetailsPageState extends State<DetailsPage> {
                             ),
                             const SizedBox(width: 16),
                             Text(
-                              'Movie',
+          widget.item.mediaType.toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        if (_details != null && _details!['runtime'] != null) ...[
+          const SizedBox(width: 16),
+          Text(
+            '${_details!['runtime']} min',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -908,72 +1436,145 @@ class _DetailsPageState extends State<DetailsPage> {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Overview
-                        if (_details != null)
+      ],
+    );
+  }
+
+  Widget _buildAdditionalDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Genres
+        if (_details!['genres'] != null && (_details!['genres'] as List).isNotEmpty) ...[
+          Text(
+            'Genres',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: (_details!['genres'] as List).map<Widget>((genre) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  genre['name'] ?? '',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+        
+        // Cast
+        if (_details!['credits'] != null && _details!['credits']['cast'] != null) ...[
                           Text(
-                            _details!['overview'] ?? 'No overview available',
+            'Cast',
                             style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
                               color: Colors.white,
-                              fontSize: 16,
-                              height: 1.5,
-                            ),
-                          )
-                        else if (_loadingDetails)
-                          const CircularProgressIndicator(color: Colors.white)
-                        else
-                          const Text(
-                            'Failed to load details',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        
-                        const Spacer(),
-                        
-                        // Action buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _loading ? null : _loadPlayback,
-                                icon: const Icon(Icons.play_arrow),
-                                label: const Text('Play'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => Navigator.of(context).pop(),
-                                icon: const Icon(Icons.arrow_back),
-                                label: const Text('Back'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: (_details!['credits']['cast'] as List).take(10).length,
+              itemBuilder: (context, index) {
+                final cast = (_details!['credits']['cast'] as List)[index];
+                return Container(
+                  width: 80,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: cast['profile_path'] != null
+                              ? DecorationImage(
+                                  image: NetworkImage('https://image.tmdb.org/t/p/w200${cast['profile_path']}'),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          color: cast['profile_path'] == null ? Colors.grey[600] : null,
                         ),
-                        const SizedBox(height: 16),
-                        
-                        // Language controls (if available)
-                        if (_summary != null) _langControls(),
-                        
-                        // Error display
-                        if (_error != null) Container(
+                        child: cast['profile_path'] == null
+                            ? const Icon(Icons.person, color: Colors.white, size: 30)
+                            : null,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        cast['name'] ?? '',
+                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _loading ? null : _loadPlayback,
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Play'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Back'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorDisplay() {
+    return Container(
                           margin: const EdgeInsets.only(top: 16),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -986,16 +1587,6 @@ class _DetailsPageState extends State<DetailsPage> {
                               color: Colors.white,
                               fontSize: 14,
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1015,8 +1606,8 @@ class PlaybackPage extends StatefulWidget {
 }
 
 class _PlaybackPageState extends State<PlaybackPage> {
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
+  Player? _player;
+  VideoController? _videoController;
   bool _initError = false;
   bool _isLoading = true;
   bool _hlsCaptured = false;
@@ -1089,6 +1680,18 @@ class _PlaybackPageState extends State<PlaybackPage> {
     } catch (_) {
       _handleServerFailure(server);
     }
+    // Record history for current title when playback is prepared
+    try {
+      if (widget.title.isNotEmpty && widget.tmdbId != null && widget.mediaType != null) {
+        final item = TmdbItem(
+          id: widget.tmdbId,
+          title: widget.title,
+          mediaType: widget.mediaType!,
+          posterPath: (widget.details?['poster_path'] as String?),
+        );
+        LibraryService.instance.addToHistory(item);
+      }
+    } catch (_) {}
   }
 
   void _handleServerFailure(_ServerOption server) {
@@ -1132,31 +1735,23 @@ class _PlaybackPageState extends State<PlaybackPage> {
   }
 
   Future<void> _setupPlayer(ResolvedStream res) async {
-      _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(res.hlsUrl),
-      httpHeaders: res.headers,
+    try {
+      _player?.dispose();
+      _player = Player();
+      _videoController = VideoController(_player!);
+      await _player!.open(
+        Media(
+          res.hlsUrl,
+          httpHeaders: res.headers,
+        ),
       );
-      await _videoController!.initialize();
+      await _player!.setPlaylistMode(PlaylistMode.loop);
+      await _player!.setVolume(100.0);
       if (!mounted) return;
-      _chewieController = ChewieController(
-        videoPlayerController: _videoController!,
-        autoPlay: true,
-        looping: true,
-        allowFullScreen: true,
-        allowMuting: true,
-        allowPlaybackSpeedChanging: true,
-        customControls: const CupertinoControls(
-          backgroundColor: Color.fromRGBO(20, 20, 20, 0.7),
-          iconColor: Colors.white,
-        ),
-        materialProgressColors: ChewieProgressColors(
-          playedColor: Theme.of(context).colorScheme.primary,
-          handleColor: Theme.of(context).colorScheme.primary,
-          bufferedColor: Colors.grey.shade400,
-          backgroundColor: Colors.grey.shade300,
-        ),
-      );
-    setState(() { _isLoading = false; });
+      setState(() { _isLoading = false; });
+    } catch (_) {
+      setState(() { _initError = true; _isLoading = false; });
+    }
   }
 
   @override
@@ -1166,9 +1761,8 @@ class _PlaybackPageState extends State<PlaybackPage> {
   }
 
   void _disposePlayers({required bool keepWebView}) {
-    _chewieController?.dispose();
-    _chewieController = null;
-    _videoController?.dispose();
+    _player?.dispose();
+    _player = null;
     _videoController = null;
     // No WebView retained
   }
@@ -1207,46 +1801,106 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width > 1000;
+    
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(widget.title),
+        actions: [
+          if (_servers.isNotEmpty)
+            PopupMenuButton<_ServerOption>(
+              icon: const Icon(Icons.settings),
+              onSelected: (server) => _switchToServer(server),
+              itemBuilder: (context) => _servers.map((server) {
+                final isActive = _currentServer?.name == server.name;
+                return PopupMenuItem<_ServerOption>(
+                  value: server,
+                  child: Row(
+                    children: [
+                      if (isActive) const Icon(Icons.check, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Text(server.name),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
       body: Column(children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: (_videoController == null || !_videoController!.value.isInitialized || _chewieController == null)
+        // Video player
+        Expanded(
+          flex: isDesktop ? 3 : 2,
+          child: Container(
+            width: double.infinity,
+            color: Colors.black,
+          child: (_videoController == null || _isLoading)
               ? (_initError
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Failed to load stream'),
+                            const Icon(Icons.error_outline, size: 64, color: Colors.white54),
                           const SizedBox(height: 16),
+                            const Text(
+                              'Failed to load stream',
+                              style: TextStyle(color: Colors.white, fontSize: 18),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Try switching servers or check your connection',
+                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                            const SizedBox(height: 24),
                           if (_servers.isNotEmpty)
-                            Wrap(spacing: 8, runSpacing: 8, children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
                               for (final s in _servers) _buildServerButton(s, compact: true),
-                            ])
+                                ],
+                              ),
                         ],
                       ),
                     )
-                  : const Center(child: CircularProgressIndicator()))
-              : Chewie(controller: _chewieController!),
+                    : const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: Colors.white),
+                            SizedBox(height: 16),
+                            Text('Loading stream...', style: TextStyle(color: Colors.white70)),
+                          ],
+                        ),
+                      ))
+              : Video(controller: _videoController!),
         ),
+        ),
+        
+        // Server controls
         if (_servers.isNotEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              border: Border(top: BorderSide(color: Colors.grey[800]!)),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
+                Text(
                     'SERVERS',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.4,
-                        ) ?? const TextStyle(fontWeight: FontWeight.w900),
+                        color: Colors.white,
+                      ) ?? const TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
                   ),
-                ),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -1257,16 +1911,53 @@ class _PlaybackPageState extends State<PlaybackPage> {
               ],
             ),
         ),
+        
+        // Movie details
+        if (widget.details != null)
         Expanded(
-          child: SingleChildScrollView(
+            flex: isDesktop ? 2 : 1,
+            child: Container(
+              width: double.infinity,
             padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (widget.details != null) ...[
-                if ((widget.details!['tagline'] ?? '').toString().isNotEmpty) Text((widget.details!['tagline'] ?? '').toString(), style: Theme.of(context).textTheme.titleMedium),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                border: Border(top: BorderSide(color: Colors.grey[800]!)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if ((widget.details!['tagline'] ?? '').toString().isNotEmpty) ...[
+                      Text(
+                        (widget.details!['tagline'] ?? '').toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Text(
+                      'Overview',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                 const SizedBox(height: 8),
-                Text((widget.details!['overview'] ?? '').toString()),
-              ],
-            ]),
+                    Text(
+                      (widget.details!['overview'] ?? '').toString(),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ),
         ),
       ]),
