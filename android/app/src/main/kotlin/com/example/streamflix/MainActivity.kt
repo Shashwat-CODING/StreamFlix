@@ -1,4 +1,4 @@
-package com.example.streamflix
+package com.shashwat.streamflix
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,134 +1,164 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../models/media_item.dart';
+import '../theme/constants.dart';
 
 class TmdbService {
-  TmdbService({http.Client? client}) : _client = client ?? http.Client();
+  static const String _base = AppConstants.tmdbBaseUrl;
+  static const String _key = AppConstants.tmdbApiKey;
 
-  final http.Client _client;
-
-  static const String _apiKey = 'ccea33eff57085a37240864ea9a27b4a';
-  static const String _readAccessToken = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjY2VhMzNlZmY1NzA4NWEzNzI0MDg2NGVhOWEyN2I0YSIsIm5iZiI6MTc0MTc4MDAwNy4zNzIsInN1YiI6IjY3ZDE3NDI3NDM0Yzk4YzhlYzgxNjkxZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.0cbFGi6YMvbfz9rNMzhB5CBYctd-_sv6vzd5nOYBUBM';
-  static const String _baseUrl = 'https://tmdbproxy.bob17040246.workers.dev/3';
-  static const String imageBase = 'https://image.tmdb.org/t/p/w342';
-
-  Map<String, String> _headers() => {
-        'Authorization': 'Bearer ' + _readAccessToken,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
-  Future<TmdbSearchResult> searchMultiPaged(String query, {int page = 1}) async {
-    final uri = Uri.parse(_baseUrl + '/search/multi').replace(queryParameters: {
-      'query': query,
-      'include_adult': 'false',
-      'language': 'en-US',
-      'page': page.toString(),
-    });
-    final resp = await _client.get(uri, headers: _headers());
-    if (resp.statusCode != 200) {
-      return TmdbSearchResult(items: const [], page: page, totalPages: 1);
-    }
-    final data = json.decode(resp.body) as Map<String, dynamic>;
-    final results = (data['results'] as List?) ?? [];
-    final items = results.map((e) => TmdbItem.fromJson(e as Map<String, dynamic>)).where((e) => e.id != null).toList();
-    final currentPage = (data['page'] is int) ? data['page'] as int : int.tryParse((data['page'] ?? '1').toString()) ?? page;
-    final totalPages = (data['total_pages'] is int)
-        ? data['total_pages'] as int
-        : int.tryParse((data['total_pages'] ?? '1').toString()) ?? 1;
-    return TmdbSearchResult(items: items, page: currentPage, totalPages: totalPages);
-  }
-
-  Future<List<TmdbItem>> popularMovies() async {
+  Future<List<MediaItem>> _fetchMovies(
+    String endpoint, {
+    Map<String, String>? extra,
+  }) async {
+    final params = {'api_key': _key, ...?extra};
+    final uri = Uri.parse('$_base$endpoint').replace(queryParameters: params);
     try {
-      final uri = Uri.parse(_baseUrl + '/movie/popular').replace(queryParameters: {
-        'language': 'en-US',
-        'page': '1',
-      });
-      final resp = await _client.get(uri, headers: _headers());
-      if (resp.statusCode == 200) {
-        final data = json.decode(resp.body) as Map<String, dynamic>;
-        final results = (data['results'] as List?) ?? [];
-        final list = results
-            .map((e) => TmdbItem.fromJson({...e as Map<String, dynamic>, 'media_type': 'movie'}))
-            .where((e) => e.id != null)
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final results = data['results'] as List? ?? [];
+        return results
+            .map((j) => MediaItem.fromMovieJson(j))
+            .where((m) => m.posterPath != null)
             .toList();
-        if (list.isNotEmpty) return list;
       }
-      // fallthrough to fallback
     } catch (_) {}
+    return [];
+  }
+
+  Future<List<MediaItem>> _fetchTv(
+    String endpoint, {
+    Map<String, String>? extra,
+  }) async {
+    final params = {'api_key': _key, ...?extra};
+    final uri = Uri.parse('$_base$endpoint').replace(queryParameters: params);
     try {
-      // Fallback to curated JSON similar to HTML reference
-      final alt = await _client.get(
-        Uri.parse('https://raw.githubusercontent.com/Shashwat-CODING/redirect/refs/heads/main/player.json'),
-      );
-      if (alt.statusCode != 200) return [];
-      final data = json.decode(alt.body) as Map<String, dynamic>;
-      final results = (data['results'] as List?) ?? [];
-      return results
-          .map((e) => TmdbItem.fromJson({...e as Map<String, dynamic>, 'media_type': 'movie'}))
-          .where((e) => e.id != null)
-          .toList();
-    } catch (_) {
-      return [];
-    }
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final results = data['results'] as List? ?? [];
+        return results
+            .map((j) => MediaItem.fromTvJson(j))
+            .where((m) => m.posterPath != null)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
-  Future<String?> getImdbId({required String mediaType, required int tmdbId}) async {
-    // Use details with append_to_response like the HTML reference, no api_key in query
-    final endpoint = mediaType == 'movie' ? 'movie' : 'tv';
-    final uri = Uri.parse(_baseUrl + '/$endpoint/$tmdbId').replace(queryParameters: {
-      'append_to_response': 'external_ids',
-    });
-    final resp = await _client.get(uri, headers: _headers());
-    if (resp.statusCode != 200) return null;
-    final data = json.decode(resp.body) as Map<String, dynamic>;
-    final imdb = (data['external_ids']?['imdb_id'] ?? data['imdb_id'])?.toString();
-    if (imdb == null || imdb.isEmpty || imdb == 'null') return null;
-    return imdb;
-  }
+  // Movies
+  Future<List<MediaItem>> getTrendingMovies() =>
+      _fetchMovies('/trending/movie/week');
 
-  Future<Map<String, dynamic>?> details({required String mediaType, required int tmdbId}) async {
-    final endpoint = mediaType == 'movie' ? 'movie' : 'tv';
-    final uri = Uri.parse(_baseUrl + '/$endpoint/$tmdbId').replace(queryParameters: {
-      'append_to_response': 'external_ids,credits,release_dates,content_ratings',
-      'language': 'en-US',
-    });
-    final resp = await _client.get(uri, headers: _headers());
-    if (resp.statusCode != 200) return null;
+  Future<List<MediaItem>> getPopularMovies() => _fetchMovies('/movie/popular');
+
+  Future<List<MediaItem>> getTopRatedMovies() =>
+      _fetchMovies('/movie/top_rated');
+
+  Future<List<MediaItem>> getUpcomingMovies() =>
+      _fetchMovies('/movie/upcoming');
+
+  Future<List<MediaItem>> getNowPlayingMovies() =>
+      _fetchMovies('/movie/now_playing');
+
+  // TV Shows
+  Future<List<MediaItem>> getPopularTvShows() => _fetchTv('/tv/popular');
+
+  Future<List<MediaItem>> getTopRatedTvShows() => _fetchTv('/tv/top_rated');
+
+  Future<List<MediaItem>> getTrendingTv() => _fetchTv('/trending/tv/week');
+
+  Future<List<MediaItem>> getAiringTodayTv() => _fetchTv('/tv/airing_today');
+
+  // Anime (animation genre = 16)
+  Future<List<MediaItem>> getAnimeMovies() => _fetchMovies(
+    '/discover/movie',
+    extra: {'with_genres': '16', 'sort_by': 'popularity.desc'},
+  );
+
+  Future<List<MediaItem>> getAnimeTv() => _fetchTv(
+    '/discover/tv',
+    extra: {'with_genres': '16', 'sort_by': 'popularity.desc'},
+  );
+
+  Future<List<MediaItem>> getTrendingAnime() => _fetchTv('/trending/tv/week');
+
+  // Search
+  Future<List<MediaItem>> search(String query) async {
+    if (query.trim().isEmpty) return [];
+    final uri = Uri.parse(
+      '$_base/search/multi',
+    ).replace(queryParameters: {'api_key': _key, 'query': query});
     try {
-      return json.decode(resp.body) as Map<String, dynamic>;
-    } catch (_) {
-      return null;
-    }
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final results = data['results'] as List? ?? [];
+        return results
+            .where((j) => j['media_type'] != 'person')
+            .map((j) => MediaItem.fromSearchJson(j))
+            .where((m) => m.posterPath != null)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
-}
 
-class TmdbItem {
-  TmdbItem({this.id, required this.mediaType, required this.title, this.posterPath});
-  final int? id;
-  final String mediaType; // movie | tv | person
-  final String title;
-  final String? posterPath;
-
-  String? get posterUrl => posterPath == null ? null : (TmdbService.imageBase + posterPath!);
-
-  factory TmdbItem.fromJson(Map<String, dynamic> json) {
-    final mediaType = (json['media_type']?.toString() ?? 'movie');
-    final title = (json['title'] ?? json['name'] ?? '').toString();
-    return TmdbItem(
-      id: json['id'] is int ? json['id'] as int : int.tryParse((json['id'] ?? '').toString()),
-      mediaType: mediaType,
-      title: title,
-      posterPath: (json['poster_path'] ?? json['profile_path'])?.toString(),
+  // Detail
+  Future<MediaDetail?> getMovieDetail(int id) async {
+    final uri = Uri.parse('$_base/movie/$id').replace(
+      queryParameters: {'api_key': _key, 'append_to_response': 'credits'},
     );
+    try {
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return MediaDetail.fromMovieDetailJson(jsonDecode(res.body));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<MediaDetail?> getTvDetail(int id) async {
+    final uri = Uri.parse('$_base/tv/$id').replace(
+      queryParameters: {'api_key': _key, 'append_to_response': 'credits'},
+    );
+    try {
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return MediaDetail.fromTvDetailJson(jsonDecode(res.body));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<TvSeason?> getTvSeasonDetail(int tvId, int seasonNumber) async {
+    final uri = Uri.parse(
+      '$_base/tv/$tvId/season/$seasonNumber',
+    ).replace(queryParameters: {'api_key': _key});
+    try {
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return TvSeason.fromJson(jsonDecode(res.body));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<TvEpisode?> getTvEpisodeDetail(
+    int tvId,
+    int season,
+    int episode,
+  ) async {
+    final uri = Uri.parse(
+      '$_base/tv/$tvId/season/$season/episode/$episode',
+    ).replace(queryParameters: {'api_key': _key});
+    try {
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return TvEpisode.fromJson(jsonDecode(res.body));
+      }
+    } catch (_) {}
+    return null;
   }
 }
-
-class TmdbSearchResult {
-  TmdbSearchResult({required this.items, required this.page, required this.totalPages});
-  final List<TmdbItem> items;
-  final int page;
-  final int totalPages;
-}
-
-
