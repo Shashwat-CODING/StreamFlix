@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:convert';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
@@ -344,19 +345,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
     if (_loading) return _buildLoading(Theme.of(context).colorScheme);
     if (_error) return _buildError(Theme.of(context).colorScheme);
 
-    return MaterialVideoControlsTheme(
-      normal: MaterialVideoControlsThemeData(
-        topButtonBar: [
-          const Spacer(),
-          MaterialCustomButton(
-            icon: const Icon(CupertinoIcons.settings, color: Colors.white),
-            onPressed: _showSettingsSheet,
-          ),
-        ],
-      ),
-      fullscreen: const MaterialVideoControlsThemeData(),
-      child: Video(controller: controller, controls: AdaptiveVideoControls),
-    );
+    return Video(controller: controller);
   }
 
   Widget _buildFloatingTopBar() {
@@ -395,10 +384,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
               const SizedBox(height: 20),
               Text(
                 'Stream Settings',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: 20,
                   letterSpacing: -0.3,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
@@ -458,10 +447,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
               const SizedBox(height: 20),
               Text(
                 'Audio Tracks',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: 20,
                   letterSpacing: -0.3,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
@@ -535,10 +524,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
               const SizedBox(height: 20),
               Text(
                 'Video Quality',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: 20,
                   letterSpacing: -0.3,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
@@ -647,9 +636,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -695,10 +685,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? cs.primary : Colors.white,
+                  color: isActive ? cs.primary : Colors.white.withOpacity(0.9),
                 ),
               ),
             ),
@@ -711,7 +701,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                 ),
                 child: Text(
                   'Active',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: cs.primary,
@@ -781,7 +771,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                     const SizedBox(width: 8),
                     Text(
                       _currentChannel.group ?? 'STREAM',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         color: cs.primary,
@@ -793,9 +783,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _currentChannel.name,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.dmSerifDisplay(
                     fontSize: 26,
-                    fontWeight: FontWeight.w900,
                     color: cs.onSurface,
                     letterSpacing: -0.5,
                   ),
@@ -826,7 +815,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
           const SizedBox(width: 4),
           Text(
             'LIVE',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.dmSans(
               color: Colors.white,
               fontSize: 10,
               fontWeight: FontWeight.w900,
@@ -848,9 +837,9 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
             children: [
               Text(
                 'Available Channels',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.dmSerifDisplay(
                   fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  color: cs.onSurface,
                 ),
               ),
               Text(
@@ -912,7 +901,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                     Expanded(
                       child: Text(
                         ch.name,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.dmSans(
                           fontWeight: active
                               ? FontWeight.w800
                               : FontWeight.w600,

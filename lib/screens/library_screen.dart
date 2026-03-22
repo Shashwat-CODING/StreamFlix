@@ -122,7 +122,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           const SizedBox(width: 10),
           RichText(
             text: TextSpan(
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -160,11 +160,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
           children: [
             Text(
               title,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.dmSerifDisplay(
                 fontSize: 20,
-                fontWeight: FontWeight.w800,
                 color: cs.onSurface,
-                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(width: 10),
@@ -172,7 +170,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               padding: const EdgeInsets.only(bottom: 3),
               child: Text(
                 '($count)',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: cs.onSurfaceVariant.withOpacity(0.5),
@@ -273,7 +271,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             const SizedBox(height: 16),
             Text(
               'Your library is empty',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: cs.onSurface,
@@ -283,7 +281,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             Text(
               'Songs and movies you save or watch\nwill appear here.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 14,
                 color: cs.onSurfaceVariant,
               ),
@@ -373,7 +371,7 @@ class _LibraryCard extends StatelessWidget {
                           ),
                           child: Text(
                             item.extraInfo!,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.dmSans(
                               fontSize: 10,
                               color: cs.onPrimary,
                               fontWeight: FontWeight.bold,
@@ -391,7 +389,7 @@ class _LibraryCard extends StatelessWidget {
                         item.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,

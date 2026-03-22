@@ -28,6 +28,7 @@ class StreamSource {
   final String? origin;
   final String? size;
   final List<Subtitle>? subtitles;
+  final Map<String, String>? headers;
   final int priority;
 
   /// When true, the player must send NO headers at all for this source.
@@ -44,6 +45,7 @@ class StreamSource {
     this.origin,
     this.size,
     this.subtitles,
+    this.headers,
     this.priority = 10,
     this.noHeaders = false,
   });
@@ -63,7 +65,7 @@ class StreamSource {
 
 class StreamingService {
   static const String _base =
-      'https://docker-1e4b-7860.prg1.zerops.app/api/media';
+      'https://laughing-potato-l01g.onrender.com/api/media';
 
   Stream<List<StreamSource>> getMovieSources(int tmdbId) =>
       _fetchAll('movie', tmdbId);
@@ -96,6 +98,7 @@ class StreamingService {
       (3, '$_base/3/$type?id=$tmdbId$query', const Duration(seconds: 30)),
       (4, '$_base/4/$type?id=$tmdbId$query', const Duration(seconds: 30)),
       (5, '$_base/5/$type?id=$tmdbId$query', const Duration(seconds: 30)),
+      (9, '$_base/9/$type?id=$tmdbId$query', const Duration(seconds: 60)),
       (10, '$_base/10/$type?id=$tmdbId$query', const Duration(seconds: 60)),
     ];
 
@@ -159,6 +162,8 @@ class StreamingService {
       // Rule: fails → server 6 blocked.
       if (serverId == 6) {
         final d = data['data'];
+        final streams = data['streams'];
+
         if (d is Map<String, dynamic> && d['stream_url'] != null) {
           final headers = d['headers'] as Map<String, dynamic>?;
           final source = StreamSource(
@@ -174,8 +179,31 @@ class StreamingService {
             '  ✅ [Server 6] ${source.quality} | ${source.source} | referer=${source.resolvedReferer}',
           );
           return [source];
+        } else if (streams is List && streams.isNotEmpty) {
+          final List<StreamSource> result = [];
+          for (final item in streams) {
+            if (item is! Map<String, dynamic>) continue;
+            final headers = item['headers'] as Map<String, dynamic>?;
+            final source = StreamSource(
+              quality: item['quality']?.toString() ?? 'Auto',
+              url: item['url']?.toString() ?? '',
+              source: (item['server'] ?? item['provider'] ?? 'Mapple')
+                  .toString()
+                  .toUpperCase(),
+              format: 'hls',
+              serverId: 6,
+              referer: (headers?['Referer'] ?? headers?['referer'])?.toString(),
+              origin: (headers?['Origin'] ?? headers?['origin'])?.toString(),
+            );
+            if (source.url.isNotEmpty) result.add(source);
+          }
+          if (result.isNotEmpty) {
+            print('  ✅ [Server 6] Found ${result.length} sources via streams array');
+            return result;
+          }
         }
-        print('❌ [Server 6] Unexpected response structure');
+
+        print('❌ [Server 6] Unexpected response structure: $data');
         return [];
       }
 
@@ -306,18 +334,16 @@ class StreamingService {
         return [];
       }
 
-      // ── Server 10 ────────────────────────────────────────────────────────
+      // ── Server 9 ─────────────────────────────────────────────────────────
       // Response:
-      //   { "success": true, "server": "Neon",
-      //     "streams": [
-      //       { "server": "Neon - 1080p", "url": "...", "type": "m3u8", "quality": "1080p",
-      //         "headers": { "Referer": "...", "origin": "..." }, "provider": "Videasy" },
-      //       ...
-      //     ] }
-      if (serverId == 10) {
+      //   { "success": true, "streams": [
+      //       { "server": "FuckIt-sr12 (Hindi)", "url": "...", "quality": "Hindi",
+      //         "headers": { "Referer": "..." }, "provider": "FuckIt" }
+      //     ], "sr": 12 }
+      if (serverId == 9) {
         final List? streams = data['streams'] as List?;
         if (streams == null || streams.isEmpty) {
-          print('⚠️  [Server 10] No streams in response');
+          print('⚠️  [Server 9] No streams in response');
           return [];
         }
 
@@ -334,18 +360,73 @@ class StreamingService {
           final source = StreamSource(
             quality: item['quality']?.toString() ?? 'Auto',
             url: item['url']?.toString() ?? '',
-            source: item['server']?.toString() ?? 'Neon',
+            source: item['server']?.toString() ?? 'Server 9',
             format: item['type']?.toString() == 'm3u8'
                 ? 'hls'
                 : (item['type']?.toString() ?? 'hls'),
-            serverId: 10,
+            serverId: 9,
             referer: (headers?['Referer'] ?? headers?['referer'])?.toString(),
             origin: (headers?['origin'] ?? headers?['Origin'])?.toString(),
             subtitles: subs,
           );
           if (source.url.isNotEmpty) {
             print(
-              '  ✅ [Server 10] ${source.quality} | ${source.source} | subs=${subs.length}',
+              '  ✅ [Server 9] ${source.quality} | ${source.source} | subs=${subs.length}',
+            );
+            result.add(source);
+          }
+        }
+        return result;
+      }
+
+      // ── Server 10 (Nxsha) ────────────────────────────────────────────────
+      if (serverId == 10) {
+        final List? streams = data['streams'] as List?;
+        if (streams == null || streams.isEmpty) {
+          print('⚠️  [Server 10] No streams in response');
+          return [];
+        }
+
+        final List<StreamSource> result = [];
+        for (final item in streams) {
+          if (item is! Map<String, dynamic>) continue;
+
+          final String itemUrl = item['url']?.toString() ?? '';
+          if (itemUrl.isEmpty) continue;
+
+          // Headers are optional in the new format
+          final rawHeaders = item['headers'] as Map<String, dynamic>?;
+          final Map<String, String> parsedHeaders = {};
+          if (rawHeaders != null) {
+            rawHeaders.forEach((key, value) {
+              parsedHeaders[key.toString()] = value.toString();
+            });
+          }
+
+          // Format normalization: m3u8 -> hls
+          final String rawType = item['type']?.toString().toLowerCase() ?? 'hls';
+          final String format = (rawType == 'm3u8' || rawType == 'hls') ? 'hls' : 'mp4';
+
+          // Source name normalization
+          final String sourceName = (item['server'] ?? item['provider'] ?? 'Nxsha')
+              .toString()
+              .toUpperCase();
+
+          final source = StreamSource(
+            quality: item['quality']?.toString() ?? 'Auto',
+            url: itemUrl,
+            source: sourceName,
+            format: format,
+            serverId: 10,
+            headers: parsedHeaders,
+            referer: parsedHeaders['Referer'] ?? parsedHeaders['referer'],
+            origin: parsedHeaders['Origin'] ?? parsedHeaders['origin'],
+            size: item['size']?.toString(),
+          );
+
+          if (source.url.isNotEmpty) {
+            print(
+              '  ✅ [Server 10] ${source.quality} | ${source.source} | format=${source.format}',
             );
             result.add(source);
           }

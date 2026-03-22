@@ -20,17 +20,27 @@ class ShimmerPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final defaultBase = isDark
+        ? const Color(0xFF1E1E1E)
+        : cs.surfaceContainerHigh;
+    final defaultHighlight = isDark
+        ? const Color(0xFF2A2A2A)
+        : cs.surfaceContainerHighest;
+
     return SizedBox(
       width: width == double.infinity ? null : width,
       height: height == double.infinity ? null : height,
       child: Shimmer.fromColors(
-        baseColor: baseColor ?? const Color(0xFF1E1E1E),
-        highlightColor: highlightColor ?? const Color(0xFF2A2A2A),
+        baseColor: baseColor ?? defaultBase,
+        highlightColor: highlightColor ?? defaultHighlight,
         child: Container(
           width: width,
           height: height,
           decoration: BoxDecoration(
-            color: baseColor ?? const Color(0xFF1E1E1E),
+            color: baseColor ?? defaultBase,
             borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),

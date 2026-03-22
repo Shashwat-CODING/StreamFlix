@@ -11,6 +11,33 @@ import '../services/watch_history.dart';
 import '../widgets/m3_loading.dart';
 import 'player_screen.dart';
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
+
+const _kRadius = 14.0;
+const _kPosterW = 120.0;
+const _kPosterH = 178.0;
+const _accent = Color(0xFFE50914);
+
+TextStyle _font(BuildContext context, {
+  double size = 14,
+  FontWeight weight = FontWeight.w400,
+  Color? color,
+  double spacing = 0,
+  double height = 1.4,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final defaultColor = isDark ? Colors.white : Theme.of(context).colorScheme.onSurface;
+  return GoogleFonts.dmSans(
+    fontSize: size,
+    fontWeight: weight,
+    color: color ?? defaultColor,
+    letterSpacing: spacing,
+    height: height,
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+
 class DetailScreen extends StatefulWidget {
   final MediaItem item;
   const DetailScreen({super.key, required this.item});
@@ -22,6 +49,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   final _service = TmdbService();
   MediaDetail? _detail;
+  List<MediaItem> _similar = [];
   bool _loading = true;
   bool _isFavorite = false;
 
@@ -34,9 +62,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   void _toggleBookmark() {
     BookmarkService.toggleBookmark(widget.item);
-    setState(() {
-      _isFavorite = BookmarkService.isBookmarked(widget.item.id);
-    });
+    setState(() => _isFavorite = BookmarkService.isBookmarked(widget.item.id));
   }
 
   Future<void> _load() async {
@@ -48,512 +74,579 @@ class _DetailScreenState extends State<DetailScreen> {
     } catch (e) {
       debugPrint('Error loading details: $e');
     }
-    if (mounted)
-      setState(() {
-        _detail = detail;
-        _loading = false;
-      });
+    if (mounted) {
+      setState(() => _detail = detail);
+      _loadSimilar();
+    }
+  }
+
+  Future<void> _loadSimilar() async {
+    try {
+      final similar = widget.item.mediaType == 'tv'
+          ? await _service.getSimilarTv(widget.item.id)
+          : await _service.getSimilarMovies(widget.item.id);
+      if (mounted) setState(() { _similar = similar; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0A0A0A) : cs.surface;
 
     if (_loading) {
       return Scaffold(
-        backgroundColor: cs.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [const M3Loading(message: 'Loading details...')],
-          ),
-        ),
+        backgroundColor: bgColor,
+        body: const Center(child: M3Loading(message: 'Loading…')),
       );
     }
 
-    final item =
-        _detail ??
-        MediaDetail(
-          id: widget.item.id,
-          title: widget.item.title,
-          overview: widget.item.overview ?? '',
-          posterPath: widget.item.posterPath ?? '',
-          backdropPath: widget.item.backdropPath ?? '',
-          releaseDate: widget.item.releaseDate ?? '',
-          voteAverage: widget.item.voteAverage,
-          mediaType: widget.item.mediaType,
-          genres: [],
-          cast: [],
-        );
+    final item = _detail ?? MediaDetail(
+      id: widget.item.id,
+      title: widget.item.title,
+      overview: widget.item.overview ?? '',
+      posterPath: widget.item.posterPath ?? '',
+      backdropPath: widget.item.backdropPath ?? '',
+      releaseDate: widget.item.releaseDate ?? '',
+      voteAverage: widget.item.voteAverage,
+      mediaType: widget.item.mediaType,
+      genres: [],
+      cast: [],
+    );
 
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: bgColor,
+      extendBody: true,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          _buildSliverAppBar(item, cs),
-          SliverToBoxAdapter(child: _buildContent(item, cs)),
+          _HeroAppBar(
+            item: item,
+            isFavorite: _isFavorite,
+            onBack: () => Navigator.pop(context),
+            onBookmark: _toggleBookmark,
+          ),
+          SliverToBoxAdapter(child: _buildBody(item, cs, isDark)),
         ],
       ),
     );
   }
 
-  Widget _buildSliverAppBar(MediaDetail item, ColorScheme cs) {
-    final size = MediaQuery.of(context).size;
+  Widget _buildBody(MediaDetail item, ColorScheme cs, bool isDark) {
+    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
 
-    return SliverAppBar(
-      expandedHeight: size.height * 0.55,
-      pinned: true,
-      stretch: true,
-      backgroundColor: cs.surface,
-      scrolledUnderElevation: 0,
-      elevation: 0,
-      leading: Padding(
-        padding: const EdgeInsets.all(8),
-        child: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: Icon(
-                    CupertinoIcons.chevron_back,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 14, top: 4, bottom: 4),
-          child: GestureDetector(
-            onTap: _toggleBookmark,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _isFavorite
-                        ? cs.primary.withOpacity(0.35)
-                        : Colors.black.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: Icon(
-                        _isFavorite
-                            ? CupertinoIcons.bookmark_fill
-                            : CupertinoIcons.bookmark,
-                        key: ValueKey(_isFavorite),
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        stretchModes: const [StretchMode.zoomBackground],
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: item.fullBackdropUrl.isNotEmpty
-                  ? item.fullBackdropUrl
-                  : item.fullPosterUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: cs.surfaceContainerHigh),
-              errorWidget: (_, __, ___) =>
-                  Container(color: cs.surfaceContainerHigh),
-            ),
-            // Gradient layers
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.3, 0.6, 1.0],
-                  colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.transparent,
-                    cs.surface.withOpacity(0.5),
-                    cs.surface,
-                  ],
-                ),
-              ),
-            ),
-            // Bottom info
-            Positioned(
-              bottom: 24,
-              left: 20,
-              right: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _badge(item.mediaType == 'tv' ? 'SERIES' : 'MOVIE'),
-                      const SizedBox(width: 10),
-                      const Icon(
-                        CupertinoIcons.star_fill,
-                        size: 16,
-                        color: Color(0xFFFFCB45),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.ratingStr,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ).animate().fadeIn().slideX(begin: -0.15),
-                  const SizedBox(height: 10),
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1.1,
-                      letterSpacing: -0.8,
-                    ),
-                  ).animate().fadeIn(delay: 80.ms).slideX(begin: -0.08),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent(MediaDetail item, ColorScheme cs) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      bool isPlayable = true;
-                      String buttonText = item.mediaType == 'tv'
-                          ? 'Select Episode'
-                          : 'Watch Now';
-                      IconData buttonIcon = item.mediaType == 'tv'
-                          ? CupertinoIcons.list_bullet
-                          : CupertinoIcons.play_fill;
-
-                      if (item.mediaType == 'movie') {
-                        if (item.status != null && item.status != 'Released') {
-                          isPlayable = false;
-                          buttonText = 'SOON';
-                          buttonIcon = CupertinoIcons.clock_fill;
-                        } else if (item.releaseDate != null &&
-                            item.releaseDate!.isNotEmpty) {
-                          try {
-                            final release = DateTime.parse(item.releaseDate!);
-                            if (release.isAfter(DateTime.now())) {
-                              isPlayable = false;
-                              buttonText = 'SOON';
-                              buttonIcon = CupertinoIcons.clock_fill;
-                            }
-                          } catch (_) {}
-                        }
-                      }
-
-                      return FilledButton.icon(
-                        onPressed: isPlayable
-                            ? () {
-                                if (item.mediaType == 'tv') {
-                                  _showEpisodeSelector(item, cs);
-                                } else {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => PlayerScreen(item: item),
-                                    ),
-                                  );
-                                }
-                              }
-                            : null,
-                        icon: Icon(buttonIcon, size: 24),
-                        label: Text(buttonText),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          textStyle: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            letterSpacing: -0.3,
-                          ),
-                          disabledBackgroundColor: cs.surfaceContainerHigh,
-                          disabledForegroundColor: cs.onSurfaceVariant,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                _squareAction(
-                  icon: _isFavorite
-                      ? CupertinoIcons.bookmark_fill
-                      : CupertinoIcons.plus,
-                  label: _isFavorite ? 'Saved' : 'Save',
-                  onTap: _toggleBookmark,
-                  cs: cs,
-                ),
-                const SizedBox(width: 10),
-                _squareAction(
-                  icon: CupertinoIcons.share,
-                  label: 'Share',
-                  onTap: () {},
-                  cs: cs,
-                ),
-              ],
-            ).animate().fadeIn(delay: 120.ms),
-
-            const SizedBox(height: 28),
-
-            // Info chips row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  _infoChip(CupertinoIcons.calendar, item.year, cs),
-                  const SizedBox(width: 10),
-                  if (item.runtime != null)
-                    _infoChip(CupertinoIcons.clock, '${item.runtime}m', cs),
-                  if (item.runtime != null) const SizedBox(width: 10),
-                  if (item.genres.isNotEmpty)
-                    _infoChip(CupertinoIcons.film, item.genres.first, cs),
-                  if (item.genres.isNotEmpty && item.genres.length > 1) ...[
-                    const SizedBox(width: 10),
-                    _infoChip(CupertinoIcons.tag, item.genres[1], cs),
-                  ],
-                ],
-              ),
-            ).animate().fadeIn(delay: 180.ms),
-
-            const SizedBox(height: 28),
-
-            // Story section
-            _sectionLabel('Synopsis', cs),
-            const SizedBox(height: 10),
-            Text(
-              item.overview ?? 'No description available.',
-              style: GoogleFonts.inter(
-                color: cs.onSurface.withOpacity(0.75),
-                fontSize: 15,
-                height: 1.65,
-                fontWeight: FontWeight.w400,
-              ),
-            ).animate().fadeIn(delay: 250.ms),
-
-            // Cast
-            if (item.cast.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              _sectionLabel('Cast', cs),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 120,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: item.cast.length.clamp(0, 12),
-                  separatorBuilder: (_, __) => const SizedBox(width: 16),
-                  itemBuilder: (_, i) {
-                    final person = item.cast[i];
-                    return Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: cs.primary.withOpacity(0.3),
-                              width: 2,
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 32,
-                            backgroundColor: cs.surfaceContainerHigh,
-                            backgroundImage: person.fullProfileUrl.isNotEmpty
-                                ? CachedNetworkImageProvider(
-                                    person.fullProfileUrl,
-                                  )
-                                : null,
-                            child: person.fullProfileUrl.isEmpty
-                                ? Icon(
-                                    CupertinoIcons.person_fill,
-                                    color: cs.onSurfaceVariant,
-                                    size: 22,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: 70,
-                          child: Text(
-                            person.name,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: cs.onSurface.withOpacity(0.85),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ).animate().fadeIn(delay: 350.ms),
-            ],
-
-            const SizedBox(height: 50),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Helpers ──
-
-  Widget _badge(String text) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE50914).withOpacity(0.75),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            text,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _squareAction({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required ColorScheme cs,
-  }) {
-    return Column(
-      children: [
-        IconButton(
-          onPressed: onTap,
-          icon: Icon(icon, color: cs.onSurface, size: 24),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            color: cs.onSurfaceVariant,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _infoChip(IconData icon, String value, ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.06), width: 0.5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 14, color: cs.primary),
-          const SizedBox(width: 7),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-              letterSpacing: -0.2,
+          // ── Meta chips row ──────────────────────────────────────────────
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                _MetaChip(icon: CupertinoIcons.star_fill, label: item.ratingStr, accent: true),
+                const SizedBox(width: 8),
+                _MetaChip(icon: CupertinoIcons.calendar, label: item.year),
+                const SizedBox(width: 8),
+                if ((item.runtime ?? 0) > 0)
+                  _MetaChip(icon: CupertinoIcons.clock, label: '${item.runtime}m'),
+                if ((item.runtime ?? 0) > 0) const SizedBox(width: 8),
+                if (item.genres.isNotEmpty)
+                  _MetaChip(icon: CupertinoIcons.tag, label: item.genres.first),
+              ],
             ),
-          ),
+          ).animate().fadeIn(delay: 200.ms),
+
+          const SizedBox(height: 24),
+
+          // ── Quick actions ───────────────────────────────────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ActionButton(
+                icon: _isFavorite ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                label: _isFavorite ? 'Saved' : 'Save',
+                onTap: _toggleBookmark,
+                active: _isFavorite,
+              ),
+              const SizedBox(width: 14),
+              _ActionButton(
+                icon: CupertinoIcons.share,
+                label: 'Share',
+                onTap: () {},
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          if (item.mediaType == 'tv') {
+                            _showEpisodeSelector(item);
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => PlayerScreen(item: item),
+                            ));
+                          }
+                        },
+                        icon: Icon(
+                          item.mediaType == 'tv' ? CupertinoIcons.list_bullet : CupertinoIcons.play_fill,
+                          size: 18,
+                        ),
+                        label: Text(
+                          item.mediaType == 'tv' ? 'Episodes' : 'Watch Now',
+                          maxLines: 1,
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(_kRadius),
+                          ),
+                          textStyle: _font(context, size: 14, weight: FontWeight.w700, spacing: 0.2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(' ', style: _font(context, size: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ).animate().fadeIn(delay: 300.ms),
+
+          const SizedBox(height: 32),
+
+          // ── Synopsis ────────────────────────────────────────────────────
+          _SectionTitle('Synopsis'),
+          const SizedBox(height: 10),
+          Text(
+            (item.overview?.isNotEmpty ?? false) ? item.overview! : 'No description available.',
+            style: _font(context, size: 14.5, color: subColor, height: 1.7),
+          ).animate().fadeIn(delay: 250.ms),
+
+          // ── Cast ────────────────────────────────────────────────────────
+          if (item.cast.isNotEmpty) ...[
+            const SizedBox(height: 36),
+            _SectionTitle('Cast'),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 108,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: item.cast.length.clamp(0, 15),
+                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                itemBuilder: (_, i) => _CastCard(cast: item.cast[i]),
+              ),
+            ),
+          ],
+
+          // ── More Like This ──────────────────────────────────────────────
+          if (_similar.isNotEmpty) ...[
+            const SizedBox(height: 36),
+            _SectionTitle('More Like This'),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 190,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _similar.length.clamp(0, 10),
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => _SimilarCard(
+                  item: _similar[i],
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => DetailScreen(item: _similar[i]),
+                  )),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _sectionLabel(String title, ColorScheme cs) {
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        fontSize: 20,
-        fontWeight: FontWeight.w800,
-        color: cs.onSurface,
-        letterSpacing: -0.5,
-      ),
-    );
-  }
-
-  void _showEpisodeSelector(MediaDetail item, ColorScheme cs) {
+  void _showEpisodeSelector(MediaDetail item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
-      builder: (context) => _EpisodeSelectorSheet(tvDetail: item),
+      builder: (_) => _EpisodeSelectorSheet(tvDetail: item),
+    );
+  }
+}
+
+// ── Hero App Bar ──────────────────────────────────────────────────────────────
+
+class _HeroAppBar extends StatelessWidget {
+  final MediaDetail item;
+  final bool isFavorite;
+  final VoidCallback onBack;
+  final VoidCallback onBookmark;
+
+  const _HeroAppBar({
+    required this.item,
+    required this.isFavorite,
+    required this.onBack,
+    required this.onBookmark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0A0A0A) : cs.surface;
+
+    return SliverAppBar(
+      expandedHeight: h * 0.52,
+      pinned: true,
+      stretch: true,
+      backgroundColor: bgColor,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [StretchMode.zoomBackground],
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Backdrop
+            CachedNetworkImage(
+              imageUrl: item.fullBackdropUrl.isNotEmpty ? item.fullBackdropUrl : item.fullPosterUrl,
+              fit: BoxFit.cover,
+            ),
+
+            // Bottom gradient — deep fade into bg
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.35, 0.72, 1.0],
+                  colors: [
+                    const Color(0x55000000),
+                    Colors.transparent,
+                    bgColor.withOpacity(0.72),
+                    bgColor,
+                  ],
+                ),
+              ),
+            ),
+
+            // Top gradient for icon legibility
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.0, 0.25],
+                  colors: [Color(0x88000000), Colors.transparent],
+                ),
+              ),
+            ),
+
+            // Poster + title block
+            Positioned(
+              left: 20, right: 20, bottom: 20,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Hero(
+                    tag: 'poster-${item.id}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(_kRadius),
+                      child: CachedNetworkImage(
+                        imageUrl: item.fullPosterUrl,
+                        width: _kPosterW,
+                        height: _kPosterH,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ).animate().scale(duration: 380.ms, curve: Curves.easeOutBack),
+
+                  const SizedBox(width: 16),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _accent,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.mediaType == 'tv' ? 'SERIES' : 'MOVIE',
+                            style: _font(context, size: 9.5, weight: FontWeight.w700, spacing: 1.2),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          item.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.dmSerifDisplay(
+                            fontSize: 26,
+                            color: isDark ? Colors.white : cs.onSurface,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ).animate().fadeIn(delay: 180.ms).slideX(begin: 0.06, curve: Curves.easeOut),
+                  ),
+                ],
+              ),
+            ),
+
+            // Nav buttons
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 16, right: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _NavBtn(icon: CupertinoIcons.chevron_back, onTap: onBack),
+                  _NavBtn(
+                    icon: isFavorite ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                    onTap: onBookmark,
+                    active: isFavorite,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Nav Button ────────────────────────────────────────────────────────────────
+
+class _NavBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  const _NavBtn({required this.icon, required this.onTap, this.active = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: active ? _accent.withOpacity(0.3) : Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Meta chip ─────────────────────────────────────────────────────────────────
+
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool accent;
+  const _MetaChip({required this.icon, required this.label, this.accent = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
+    final dimColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.4);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.07) : cs.onSurface.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.08),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: accent ? const Color(0xFFFFCB45) : dimColor),
+          const SizedBox(width: 6),
+          Text(label, style: _font(context, size: 12.5, weight: FontWeight.w600, color: subColor)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Square Action Button ──────────────────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+  const _ActionButton({required this.icon, required this.label, required this.onTap, this.active = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final subColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.38);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+              color: active ? _accent.withOpacity(0.18) : (isDark ? Colors.white.withOpacity(0.07) : cs.onSurface.withOpacity(0.05)),
+              borderRadius: BorderRadius.circular(_kRadius),
+              border: Border.all(
+                color: active ? _accent.withOpacity(0.4) : (isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.1)),
+                width: 0.5,
+              ),
+            ),
+            child: Icon(icon, color: active ? _accent : (isDark ? Colors.white : cs.onSurface), size: 20),
+          ),
+          const SizedBox(height: 7),
+          Text(label, style: _font(context, size: 11, color: subColor, weight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Section Title ─────────────────────────────────────────────────────────────
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Theme.of(context).colorScheme.onSurface;
+    return Text(text, style: GoogleFonts.dmSerifDisplay(fontSize: 20, color: textColor));
+  }
+}
+
+// ── Cast Card ─────────────────────────────────────────────────────────────────
+
+class _CastCard extends StatelessWidget {
+  final dynamic cast;
+  const _CastCard({required this.cast});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
+
+    return SizedBox(
+      width: 72,
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(36),
+            child: CachedNetworkImage(
+              imageUrl: cast.fullProfileUrl,
+              width: 64, height: 64, fit: BoxFit.cover,
+              placeholder: (_, __) => Container(
+                color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
+                child: Icon(CupertinoIcons.person, size: 24, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.1)),
+              ),
+              errorWidget: (_, __, ___) => Container(
+                color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
+                child: Icon(CupertinoIcons.person_fill, size: 24, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.1)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            cast.name,
+            textAlign: TextAlign.center,
+            maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: _font(context, size: 11, color: subColor, weight: FontWeight.w500, height: 1.3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Similar Card ──────────────────────────────────────────────────────────────
+
+class _SimilarCard extends StatelessWidget {
+  final MediaItem item;
+  final VoidCallback onTap;
+  const _SimilarCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subColor = isDark ? Colors.white70 : Theme.of(context).colorScheme.onSurface.withOpacity(0.7);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 120,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(_kRadius),
+                child: CachedNetworkImage(
+                  imageUrl: item.fullPosterUrl,
+                  fit: BoxFit.cover, width: double.infinity,
+                  errorWidget: (_, __, ___) => Container(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                    child: const Icon(CupertinoIcons.film, color: Colors.white24),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              item.title,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: _font(context, size: 12, color: subColor, weight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -586,10 +679,7 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
 
   Future<void> _loadEpisodes() async {
     setState(() => _loading = true);
-    final season = await _service.getTvSeasonDetail(
-      widget.tvDetail.id,
-      _selectedSeason.seasonNumber,
-    );
+    final season = await _service.getTvSeasonDetail(widget.tvDetail.id, _selectedSeason.seasonNumber);
     if (mounted) {
       setState(() {
         _episodes = season?.episodes ?? [];
@@ -600,226 +690,156 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final size = MediaQuery.of(context).size;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final bgColor = isDark ? const Color(0xEE0F0F0F) : cs.surface.withOpacity(0.95);
+    final textColor = isDark ? Colors.white : cs.onSurface;
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: Container(
           height: size.height * 0.88,
-          color: Colors.black.withOpacity(0.85),
+          color: bgColor,
           child: Column(
             children: [
-          // Handle
-          const SizedBox(height: 10),
-          Container(
-            width: 40,
-            height: 5,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(3),
-            ),
+              const SizedBox(height: 12),
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+                child: Row(
+                  children: [
+                    Text('Episodes', style: GoogleFonts.dmSerifDisplay(fontSize: 22, color: textColor)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isDark ? Colors.white12 : cs.onSurface.withOpacity(0.1), width: 0.5),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<TvSeason>(
+                          value: _selectedSeason,
+                          dropdownColor: isDark ? const Color(0xFF1A1A1A) : cs.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          icon: Icon(CupertinoIcons.chevron_down, color: isDark ? Colors.white70 : cs.onSurface, size: 14),
+                          isDense: true,
+                          style: _font(context, size: 13, weight: FontWeight.w600),
+                          items: widget.tvDetail.seasons
+                              .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
+                              .toList(),
+                          onChanged: (s) {
+                            if (s != null) {
+                              setState(() => _selectedSeason = s);
+                              _loadEpisodes();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(color: (isDark ? Colors.white : cs.onSurface).withOpacity(0.06), height: 1),
+              Expanded(
+                child: _loading
+                    ? const Center(child: M3Loading(message: 'Loading episodes…'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                        itemCount: _episodes.length,
+                        itemBuilder: (_, i) => _EpisodeTile(episode: _episodes[i], tvDetail: widget.tvDetail),
+                      ),
+              ),
+            ],
           ),
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 16, 0),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Episode Tile ──────────────────────────────────────────────────────────────
+
+class _EpisodeTile extends StatelessWidget {
+  final TvEpisode episode;
+  final MediaDetail tvDetail;
+  const _EpisodeTile({required this.episode, required this.tvDetail});
+
+  @override
+  Widget build(BuildContext context) {
+    final ep = episode;
+    final isUpcoming = ep.airDate != null && ep.airDate!.isAfter(DateTime.now());
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final subColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.4);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Opacity(
+        opacity: isUpcoming ? 0.45 : 1.0,
+        child: InkWell(
+          onTap: isUpcoming ? null : () {
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => PlayerScreen(item: tvDetail, season: ep.seasonNumber, episode: ep.episodeNumber),
+            ));
+          },
+          borderRadius: BorderRadius.circular(_kRadius),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.05) : cs.onSurface.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(_kRadius),
+              border: Border.all(color: isDark ? Colors.white.withOpacity(0.06) : cs.onSurface.withOpacity(0.05), width: 0.5),
+            ),
             child: Row(
               children: [
-                Text(
-                  'Episodes',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: ep.fullStillUrl.isNotEmpty
+                      ? CachedNetworkImage(imageUrl: ep.fullStillUrl, width: 96, height: 56, fit: BoxFit.cover)
+                      : Container(
+                          width: 96, height: 56,
+                          color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
+                          child: Icon(CupertinoIcons.film_fill, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.2), size: 20),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ep ${ep.episodeNumber}  ·  ${ep.name}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: _font(context, size: 13, weight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text(ep.overview ?? 'No description.', maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: _font(context, size: 12, color: subColor, height: 1.5)),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                // Season Picker
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.08),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<TvSeason>(
-                      value: _selectedSeason,
-                      dropdownColor: cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                      icon: Icon(
-                        CupertinoIcons.chevron_down,
-                        color: cs.onSurface,
-                        size: 18,
-                      ),
-                      isDense: true,
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: cs.onSurface,
-                      ),
-                      items: widget.tvDetail.seasons
-                          .map(
-                            (s) =>
-                                DropdownMenuItem(value: s, child: Text(s.name)),
-                          )
-                          .toList(),
-                      onChanged: (s) {
-                        if (s != null) {
-                          setState(() => _selectedSeason = s);
-                          _loadEpisodes();
-                        }
-                      },
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 8),
+                isUpcoming
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text('SOON', style: _font(context, size: 9, weight: FontWeight.w700, color: subColor, spacing: 0.8)),
+                      )
+                    : const Icon(CupertinoIcons.play_circle_fill, color: _accent, size: 28),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Divider(color: Colors.white.withOpacity(0.06), height: 1),
-          Expanded(
-            child: _loading
-                ? const Center(child: M3Loading(message: 'Loading episodes...'))
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    itemCount: _episodes.length,
-                    itemBuilder: (_, i) {
-                      final ep = _episodes[i];
-                      final isUpcoming =
-                          ep.airDate != null &&
-                          ep.airDate!.isAfter(DateTime.now());
-
-                      return InkWell(
-                        onTap: isUpcoming
-                            ? null
-                            : () {
-                                Navigator.pop(context);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PlayerScreen(
-                                      item: widget.tvDetail,
-                                      season: ep.seasonNumber,
-                                      episode: ep.episodeNumber,
-                                    ),
-                                  ),
-                                );
-                              },
-                        borderRadius: BorderRadius.circular(14),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Opacity(
-                            opacity: isUpcoming ? 0.5 : 1.0,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: cs.surfaceContainerHighest.withOpacity(
-                                  0.5,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Thumbnail
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: ep.fullStillUrl.isNotEmpty
-                                        ? CachedNetworkImage(
-                                            imageUrl: ep.fullStillUrl,
-                                            width: 100,
-                                            height: 58,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : Container(
-                                            width: 100,
-                                            height: 58,
-                                            color: cs.surfaceContainerHighest,
-                                            child: Icon(
-                                              CupertinoIcons.film_fill,
-                                              color: cs.onSurfaceVariant,
-                                              size: 22,
-                                            ),
-                                          ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Ep ${ep.episodeNumber}   ${ep.name}',
-                                          style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                            color: cs.onSurface,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          ep.overview ?? 'No description.',
-                                          style: GoogleFonts.inter(
-                                            color: cs.onSurfaceVariant,
-                                            fontSize: 12,
-                                            height: 1.4,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  isUpcoming
-                                      ? Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: cs.surfaceContainerHighest,
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'SOON',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w800,
-                                              color: cs.onSurface.withOpacity(
-                                                0.6,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      : Icon(
-                                          CupertinoIcons.play_circle,
-                                          color: cs.primary,
-                                          size: 26,
-                                        ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
         ),
       ),
     );

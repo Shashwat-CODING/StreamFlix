@@ -161,4 +161,10 @@ class TmdbService {
     } catch (_) {}
     return null;
   }
+
+  // Similar Media
+  Future<List<MediaItem>> getSimilarMovies(int id) =>
+      _fetchMovies('/movie/$id/similar');
+
+  Future<List<MediaItem>> getSimilarTv(int id) => _fetchTv('/tv/$id/similar');
 }

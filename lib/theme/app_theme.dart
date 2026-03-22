@@ -14,10 +14,39 @@ class AppTheme {
   static const Color _darkCardHigh = Color(0xFF2C2C2E); // iOS elevated gray
 
   static ThemeData lightTheme() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: _accentRed,
+    const colorScheme = ColorScheme(
       brightness: Brightness.light,
       primary: _accentRed,
+      onPrimary: Colors.white,
+      primaryContainer: Color(0xFFFFD9E2),
+      onPrimaryContainer: Color(0xFF3E0010),
+      secondary: Color(0xFFC83B61),
+      onSecondary: Colors.white,
+      secondaryContainer: Color(0xFFFFD6E0),
+      onSecondaryContainer: Color(0xFF3E0016),
+      tertiary: Color(0xFFFF8C42),
+      onTertiary: Colors.white,
+      tertiaryContainer: Color(0xFFFFDBC9),
+      onTertiaryContainer: Color(0xFF2B1200),
+      error: Color(0xFFBA1A1A),
+      onError: Colors.white,
+      errorContainer: Color(0xFFFFDAD6),
+      onErrorContainer: Color(0xFF410002),
+      surface: Color(0xFFFBFBFD),
+      onSurface: Color(0xFF1C1C1E),
+      surfaceContainerLowest: Color(0xFFFFFFFF),
+      surfaceContainerLow: Color(0xFFF7F7F7),
+      surfaceContainer: Color(0xFFF2F2F7),
+      surfaceContainerHigh: Color(0xFFEBEBF0),
+      surfaceContainerHighest: Color(0xFFE5E5EA),
+      onSurfaceVariant: Color(0xFF444446),
+      outline: Color(0xFF8E8E93),
+      outlineVariant: Color(0xFFD1D1D6),
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: Color(0xFF1C1C1E),
+      onInverseSurface: Color(0xFFFBFBFD),
+      inversePrimary: Color(0xFFFFB1C8),
     );
     return _buildTheme(colorScheme);
   }
@@ -68,7 +97,7 @@ class AppTheme {
       colorScheme: cs,
       scaffoldBackgroundColor: cs.surface,
       splashFactory: InkRipple.splashFactory,
-      textTheme: GoogleFonts.interTextTheme(
+      textTheme: GoogleFonts.dmSansTextTheme(
         isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
       ),
       appBarTheme: AppBarTheme(
@@ -77,11 +106,11 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: GoogleFonts.dmSerifDisplay(
           color: cs.onSurface,
           fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
         ),
         iconTheme: IconThemeData(color: cs.onSurface, size: 24),
       ),
@@ -111,10 +140,10 @@ class AppTheme {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           elevation: 0,
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.dmSans(
             fontWeight: FontWeight.w700,
             fontSize: 16,
-            letterSpacing: -0.4,
+            letterSpacing: 0,
           ),
         ),
       ),
@@ -126,16 +155,16 @@ class AppTheme {
             borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.dmSans(
             fontWeight: FontWeight.w600,
             fontSize: 16,
-            letterSpacing: -0.4,
+            letterSpacing: 0,
           ),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: cs.surfaceContainerHigh,
-        labelStyle: GoogleFonts.inter(
+        labelStyle: GoogleFonts.dmSans(
           color: cs.onSurface,
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -155,16 +184,16 @@ class AppTheme {
           horizontal: 16,
           vertical: 14,
         ),
-        hintStyle: GoogleFonts.inter(
+        hintStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: cs.onSurfaceVariant.withOpacity(0.6),
-          letterSpacing: -0.3,
+          letterSpacing: 0,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: isDark ? const Color(0xFF252535) : cs.inverseSurface,
-        contentTextStyle: GoogleFonts.inter(
+        contentTextStyle: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: isDark ? const Color(0xFFF0F0FF) : cs.onInverseSurface,

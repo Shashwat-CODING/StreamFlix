@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -55,39 +56,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // Tracks which CDN base URLs have fully failed.
   final Set<String> _failedCDNs = {};
+  bool _isStreamDone = false;
 
   // FIX 2: _handlingError must always be reset, including in the "all failed" path.
   bool _handlingError = false;
 
   bool _isFullscreen = false;
+  bool _hasSeeked = false;
   TvEpisode? _episodeDetail;
 
   Timer? _loadingTimer;
   int _messageIndex = 0;
-  bool _showSlowLoadingHint = false;
-
   final List<String> _loadingMessages = [
-    'Digging for streams...',
-    'Funding server...',
-    'Finding the best quality...',
-    'Polishing the pixels...',
-    'Optimizing buffer...',
-    'Almost there...',
+    'Setting the stage...',
+    'Finding best streams...',
+    'Preparing stream...',
+    'Polishing pixels...',
+    'Almost ready...',
+    'Rolling soon...',
   ];
 
   void _startLoadingAnimation() {
     _stopLoadingAnimation();
     _messageIndex = 0;
-    _showSlowLoadingHint = false;
 
     _loadingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
           _messageIndex = (_messageIndex + 1) % _loadingMessages.length;
-          if (timer.tick >= 10) {
-            // ~30 seconds (3s * 10)
-            _showSlowLoadingHint = true;
-          }
         });
       }
     });
@@ -131,6 +127,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           releaseDate: widget.item!.releaseDate,
           mediaType: widget.item!.mediaType,
           extraInfo: extra,
+          position: widget.item!.position,
+          duration: widget.item!.duration,
         ),
       );
 
@@ -163,6 +161,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _sources = [];
       _selectedSource = null;
       _failedCDNs.clear();
+      _isStreamDone = false;
       _handlingError = false;
     });
     _startLoadingAnimation();
@@ -194,27 +193,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
           if (_selectedSource == null && _sources.isNotEmpty) {
             // Find first source whose CDN hasn't failed yet
-            final bestSource = _sources.firstWhere(
-              (s) => !_failedCDNs.contains(_getCDN(s.url)),
-              orElse: () => _sources.first,
+            final bestSource = _sources.cast<StreamSource?>().firstWhere(
+              (s) => s != null && !_failedCDNs.contains(_getCDN(s.url)),
+              orElse: () => null,
             );
-            _selectedSource = bestSource;
-            debugPrint('▶️  Starting with best available: $_selectedSource');
-            _initPlayer(_selectedSource!.url);
+            
+            if (bestSource != null) {
+              _selectedSource = bestSource;
+              debugPrint('▶️  Starting with best available: $_selectedSource');
+              _initPlayer(_selectedSource!.url);
+            }
           }
         });
       },
       onDone: () {
         if (!mounted) return;
-        if (_sources.isEmpty) {
+        _isStreamDone = true;
+        
+        final bool allSourcesFailed = _sources.isNotEmpty && 
+            _sources.every((s) => _failedCDNs.contains(_getCDN(s.url)));
+            
+        if (_sources.isEmpty || allSourcesFailed) {
+          final msg = allSourcesFailed ? 'All available servers failed to load. Please try again.' : 'No playback sources found for this ${isTv ? "show" : "movie"}.';
           setState(() {
             _loading = false;
             _error = true;
-            _errorMsg =
-                'No playback sources found for this ${isTv ? "show" : "movie"}.';
+            _errorMsg = msg;
           });
           _stopLoadingAnimation();
-          debugPrint('❌ No sources found after all servers checked');
+          _showErrorDialog(msg);
+          debugPrint('❌ No valid sources found after all servers checked');
         } else {
           debugPrint(
             '📦 Finished fetching all sources. Total: ${_sources.length}',
@@ -225,12 +233,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         debugPrint('❌ Stream error: $e');
         if (!mounted) return;
         if (_sources.isEmpty) {
+          final msg = 'Error fetching sources: $e';
           setState(() {
             _loading = false;
             _error = true;
-            _errorMsg = 'Error fetching sources: $e';
+            _errorMsg = msg;
           });
           _stopLoadingAnimation();
+          _showErrorDialog(msg);
         }
       },
     );
@@ -304,17 +314,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     }
 
+    if (!_isStreamDone) {
+      debugPrint('⏳ All known sources failed, but stream is still fetching. Waiting...');
+      _handlingError = false;
+      _selectedSource = null; // Ensures stream listener will pick up a new source if it appears
+      return;
+    }
+
     // FIX 6: Reset guard in the "all servers failed" path too —
     // was previously left true, permanently blocking future error handling.
     debugPrint('❌ All servers failed. Showing error screen.');
     _handlingError = false;
     if (mounted) {
+      final msg = 'All available servers failed to load.\n${error.toString()}';
       setState(() {
         _loading = false;
         _error = true;
-        _errorMsg =
-            'All available servers failed to load.\n${error.toString()}';
+        _errorMsg = msg;
       });
+      _showErrorDialog(msg);
       _stopLoadingAnimation();
     }
   }
@@ -348,6 +366,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
           };
 
+    if (!skipHeaders && _selectedSource?.headers != null) {
+      // Overwrite default headers with any dynamically provided headers from the source.
+      headers.addAll(_selectedSource!.headers!);
+    }
+
     debugPrint('\n▶️  Initializing media_kit Player');
     debugPrint('   URL: $url');
 
@@ -372,6 +395,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) {
         setState(() => _loading = false);
         _stopLoadingAnimation();
+
+        // Seek once if we have a saved position
+        if (!_hasSeeked && widget.item?.position != null) {
+          _hasSeeked = true;
+          player.seek(Duration(milliseconds: widget.item!.position!));
+        }
       }
     } catch (e) {
       debugPrint(
@@ -414,11 +443,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _saveProgress();
     _resetSystemUI();
     player.dispose();
     _stopLoadingAnimation();
     WakelockPlus.disable().catchError((_) {});
     super.dispose();
+  }
+
+  void _saveProgress() {
+    if (widget.item == null || player.state.duration.inMilliseconds <= 0) return;
+
+    final pos = player.state.position.inMilliseconds;
+    final dur = player.state.duration.inMilliseconds;
+
+    // If watched > 95%, we consider it finished and don't save progress
+    // (or we save 0 so it's not in "Continue Watching" with 1 min left)
+    final progress = pos / dur;
+    final finalPos = progress > 0.95 ? 0 : pos;
+
+    WatchHistory.addItem(
+      MediaItem(
+        id: widget.item!.id,
+        title: widget.item!.title,
+        overview: widget.item!.overview,
+        posterPath: widget.item!.posterPath,
+        backdropPath: widget.item!.backdropPath,
+        voteAverage: widget.item!.voteAverage,
+        releaseDate: widget.item!.releaseDate,
+        mediaType: widget.item!.mediaType,
+        extraInfo: (widget.item!.mediaType == 'tv' &&
+                widget.season != null &&
+                widget.episode != null)
+            ? 'S${widget.season} E${widget.episode}'
+            : null,
+        position: finalPos,
+        duration: dur,
+      ),
+    );
   }
 
   void _resetSystemUI() {
@@ -453,7 +515,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
             autofocus: true,
             child: Scaffold(
               backgroundColor: Colors.black,
-              body: Center(child: _buildVideoContainer()),
+              body: Stack(
+                children: [
+                  Center(child: _buildVideoContainer()),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(child: _buildFloatingTopBar()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -567,15 +639,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Row(
             children: [
               _glassIconButton(
-                icon: Icons.arrow_back_rounded,
+                icon: CupertinoIcons.chevron_back,
                 onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(width: 10),
               Text(
                 'Playback Settings',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.dmSerifDisplay(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
                   color: cs.onSurface,
                 ),
               ),
@@ -588,7 +659,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             children: [
               _sidebarTile(
-                icon: Icons.high_quality_rounded,
+                icon: CupertinoIcons.videocam_circle,
                 title: 'Resolution',
                 subtitle: player.state.track.video.id == 'auto'
                     ? 'Auto'
@@ -597,24 +668,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 cs: cs,
               ),
               _sidebarTile(
-                icon: Icons.dns_rounded,
+                icon: CupertinoIcons.layers_alt,
                 title: 'Source / Server',
                 subtitle: _selectedSource?.quality ?? 'Select',
                 onTap: _showSourcePicker,
                 cs: cs,
               ),
               _sidebarTile(
-                icon: Icons.audiotrack_rounded,
+                icon: CupertinoIcons.music_note_2,
                 title: 'Audio Tracks',
                 subtitle: 'Change Language',
                 onTap: _showAudioSelection,
                 cs: cs,
               ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 30, 20, 10),
+               Padding(
+                padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
                 child: Text(
                   'SHORTCUTS',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
@@ -650,11 +721,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 14),
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+        style: GoogleFonts.dmSans(color: cs.onSurfaceVariant, fontSize: 12),
       ),
       onTap: onTap,
     );
@@ -666,8 +737,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Row(
         children: [
           _glassIconButton(
-            icon: Icons.arrow_back_rounded,
+            icon: CupertinoIcons.chevron_back,
             onPressed: () => Navigator.pop(context),
+          ),
+          const Spacer(),
+          _glassIconButton(
+            icon: CupertinoIcons.settings,
+            onPressed: _showSettingsSheet,
           ),
         ],
       ),
@@ -686,62 +762,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _buildVideoContainer() {
     if (_loading) return _buildLoadingView();
-    if (_error) return _buildErrorView();
+    if (_error) {
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Icon(
+            CupertinoIcons.play_rectangle_fill,
+            color: Colors.white.withOpacity(0.1),
+            size: 64,
+          ),
+        ),
+      );
+    }
 
-    return MaterialVideoControlsTheme(
-      normal: MaterialVideoControlsThemeData(
-        topButtonBar: [
-          const Spacer(),
-          MaterialCustomButton(
-            icon: const Icon(Icons.settings_rounded, color: Colors.white),
-            onPressed: _showSettingsSheet,
-          ),
-        ],
-      ),
-      fullscreen: MaterialVideoControlsThemeData(
-        topButtonBar: [
-          const Spacer(),
-          MaterialCustomButton(
-            icon: const Icon(Icons.settings_rounded, color: Colors.white),
-            onPressed: _showSettingsSheet,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Video(controller: controller, controls: AdaptiveVideoControls),
-          // Always-visible settings button in top-right (desktop fallback)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: _showSettingsSheet,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.settings_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return Video(controller: controller);
   }
 
   // ── Bottom Sheets ───────────────────────────────────────────────────────────
 
   void _showSettingsSheet() {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -750,60 +792,63 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: Colors.black.withOpacity(0.85),
+            color: isDark
+                ? Colors.black.withOpacity(0.8)
+                : cs.surface.withOpacity(0.8),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Center(child: _dragHandle()),
-              const SizedBox(height: 20),
-              Text(
-                'Playback Settings',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(child: _dragHandle()),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Playback Settings',
+                      style: GoogleFonts.dmSerifDisplay(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _sheetOption(
+                      icon: CupertinoIcons.film,
+                      label: 'Video Quality',
+                      cs: cs,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showVideoTrackSelection();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _sheetOption(
+                      icon: CupertinoIcons.layers_alt,
+                      label: 'Change Server',
+                      cs: cs,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showSourcePicker();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _sheetOption(
+                      icon: CupertinoIcons.music_note_2,
+                      label: 'Audio Tracks',
+                      cs: cs,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showAudioSelection();
+                      },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              _sheetOption(
-                icon: CupertinoIcons.film,
-                label: 'Video Quality',
-                cs: cs,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showVideoTrackSelection();
-                },
-              ),
-              const SizedBox(height: 8),
-              _sheetOption(
-                icon: CupertinoIcons.layers_alt,
-                label: 'Change Server',
-                cs: cs,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showSourcePicker();
-                },
-              ),
-              const SizedBox(height: 8),
-              _sheetOption(
-                icon: CupertinoIcons.music_note_2,
-                label: 'Audio Tracks',
-                cs: cs,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showAudioSelection();
-                },
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-        ),
-      ),
       ),
     );
   }
@@ -824,6 +869,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final cs = Theme.of(context).colorScheme;
     final selectedTrack = player.state.track.audio;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
@@ -833,84 +879,76 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: Colors.black.withOpacity(0.85),
+            color: isDark
+                ? Colors.black.withOpacity(0.8)
+                : cs.surface.withOpacity(0.8),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Center(child: _dragHandle()),
-              const SizedBox(height: 20),
-              Text(
-                'Audio Tracks',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(child: _dragHandle()),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Audio Tracks',
+                      style: GoogleFonts.dmSerifDisplay(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: tracks.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final track = tracks[index];
+                          final isActive = track == selectedTrack;
+                          String label;
+                          if (track.id == 'auto') {
+                            label = 'Auto';
+                          } else if (track.id == 'no') {
+                            label = 'Disabled';
+                          } else {
+                            label = LanguageUtils.getLabel(
+                              track.language,
+                              track.title,
+                              index,
+                            );
+                          }
+                          return _sheetTrackTile(
+                            label: label,
+                            isActive: isActive,
+                            icon: CupertinoIcons.music_note_2,
+                            cs: cs,
+                            onTap: () {
+                              player.setAudioTrack(track);
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: tracks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, index) {
-                    final track = tracks[index];
-                    final isActive = track == selectedTrack;
-                    String label;
-                    if (track.id == 'auto') {
-                      label = 'Auto';
-                    } else if (track.id == 'no') {
-                      label = 'Disabled';
-                    } else {
-                      label = LanguageUtils.getLabel(
-                        track.language,
-                        track.title,
-                        index,
-                      );
-                    }
-                    return _sheetTrackTile(
-                      label: label,
-                      isActive: isActive,
-                      icon: CupertinoIcons.music_note_2,
-                      cs: cs,
-                      onTap: () {
-                        player.setAudioTrack(track);
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-        ),
-      ),
       ),
     );
   }
 
   void _showVideoTrackSelection() {
     final tracks = player.state.tracks.video;
-
-    if (tracks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No video tracks available yet. Try again after playback starts.',
-          ),
-        ),
-      );
-      return;
-    }
-
     final cs = Theme.of(context).colorScheme;
     final selectedTrack = player.state.track.video;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
@@ -920,86 +958,92 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: Colors.black.withOpacity(0.85),
+            color: isDark
+                ? Colors.black.withOpacity(0.8)
+                : cs.surface.withOpacity(0.8),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Center(child: _dragHandle()),
-              const SizedBox(height: 20),
-              Text(
-                'Video Quality',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(child: _dragHandle()),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Video Quality',
+                      style: GoogleFonts.dmSerifDisplay(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: tracks.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final track = tracks[index];
+                          final isActive = track == selectedTrack;
+                          String label;
+                          if (track.id == 'auto') {
+                            label = 'Auto';
+                          } else if (track.id == 'no') {
+                            label = 'Disabled';
+                          } else {
+                            final List<String> parts = [];
+                            if (track.h != null) {
+                              parts.add('${track.h}p');
+                            } else if (track.w != null) {
+                              parts.add('${track.w}w');
+                            }
+                            if (track.bitrate != null && track.bitrate! > 0) {
+                              parts.add(
+                                '${(track.bitrate! / 1000).round()} kbps',
+                              );
+                            }
+                            if (track.fps != null && track.fps! > 0) {
+                              parts.add('${track.fps!.round()} fps');
+                            }
+                            if (track.codec != null &&
+                                track.codec!.isNotEmpty) {
+                              parts.add(track.codec!.toUpperCase());
+                            }
+                            if (parts.isNotEmpty) {
+                              label = parts.join(' · ');
+                              if (track.title != null &&
+                                  track.title!.toLowerCase() != 'und') {
+                                label += ' (${track.title})';
+                              }
+                            } else if (track.title != null &&
+                                track.title!.toLowerCase() != 'und') {
+                              label = track.title!;
+                            } else {
+                              label = 'Track ${index + 1}';
+                            }
+                          }
+                          return _sheetTrackTile(
+                            label: label,
+                            isActive: isActive,
+                            icon: CupertinoIcons.film,
+                            cs: cs,
+                            onTap: () {
+                              player.setVideoTrack(track);
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: tracks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, index) {
-                    final track = tracks[index];
-                    final isActive = track == selectedTrack;
-                    String label;
-                    if (track.id == 'auto') {
-                      label = 'Auto';
-                    } else if (track.id == 'no') {
-                      label = 'Disabled';
-                    } else {
-                      final List<String> parts = [];
-                      if (track.h != null) {
-                        parts.add('${track.h}p');
-                      } else if (track.w != null) {
-                        parts.add('${track.w}w');
-                      }
-                      if (track.bitrate != null && track.bitrate! > 0) {
-                        parts.add('${(track.bitrate! / 1000).round()} kbps');
-                      }
-                      if (track.fps != null && track.fps! > 0) {
-                        parts.add('${track.fps!.round()} fps');
-                      }
-                      if (track.codec != null && track.codec!.isNotEmpty) {
-                        parts.add(track.codec!.toUpperCase());
-                      }
-                      if (parts.isNotEmpty) {
-                        label = parts.join(' · ');
-                        if (track.title != null &&
-                            track.title!.toLowerCase() != 'und') {
-                          label += ' (${track.title})';
-                        }
-                      } else if (track.title != null &&
-                          track.title!.toLowerCase() != 'und') {
-                        label = track.title!;
-                      } else {
-                        label = 'Track ${index + 1}';
-                      }
-                    }
-                    return _sheetTrackTile(
-                      label: label,
-                      isActive: isActive,
-                      icon: CupertinoIcons.film,
-                      cs: cs,
-                      onTap: () {
-                        player.setVideoTrack(track);
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-        ),
-      ),
       ),
     );
   }
@@ -1009,6 +1053,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final availableSources = _sources
         .where((s) => !_failedCDNs.contains(_getCDN(s.url)))
         .toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
@@ -1020,181 +1065,186 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            color: Colors.black.withOpacity(0.85),
+            color: isDark
+                ? Colors.black.withOpacity(0.8)
+                : cs.surface.withOpacity(0.8),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 14),
-            Center(child: _dragHandle()),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.high_quality_rounded,
-                    color: cs.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Select Quality',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${availableSources.length} sources',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const BouncingScrollPhysics(),
-                itemCount: availableSources.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final s = availableSources[i];
-                  final active = s == _selectedSource;
-                  // Determine quality icon
-                  IconData qualIcon = Icons.sd_rounded;
-                  final q = s.quality.toLowerCase();
-                  if (q.contains('4k') || q.contains('2160'))
-                    qualIcon = Icons.hd_rounded;
-                  else if (q.contains('1080'))
-                    qualIcon = Icons.hd_rounded;
-                  else if (q.contains('720'))
-                    qualIcon = Icons.hd_rounded;
-                  else if (q.contains('480') || q.contains('480'))
-                    qualIcon = Icons.sd_rounded;
-
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? cs.primary.withOpacity(0.15)
-                          : cs.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: active
-                            ? cs.primary.withOpacity(0.5)
-                            : cs.outlineVariant.withOpacity(0.4),
-                        width: active ? 1.5 : 0.5,
-                      ),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      leading: Container(
-                        width: 42,
-                        height: 42,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 14),
+                  Center(child: _dragHandle()),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: active
-                              ? cs.primary.withOpacity(0.2)
-                              : cs.surfaceContainerHighest,
+                          color: cs.primary.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          qualIcon,
-                          color: active ? cs.primary : cs.onSurfaceVariant,
+                          CupertinoIcons.sparkles,
+                          color: cs.primary,
                           size: 20,
                         ),
                       ),
-                      title: Text(
-                        s.quality,
-                        style: GoogleFonts.inter(
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          fontSize: 14,
-                          color: active ? cs.primary : cs.onSurface,
+                      const SizedBox(width: 12),
+                      Text(
+                        'Select Quality',
+                        style: GoogleFonts.dmSerifDisplay(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: cs.onSurface,
                         ),
                       ),
-                      subtitle: Text(
-                        s.serverId == 0
-                            ? s.source
-                            : '${s.source} · Server ${s.serverId}',
-                        style: GoogleFonts.inter(
-                          color: active
-                              ? cs.primary.withOpacity(0.7)
-                              : cs.onSurfaceVariant,
+                      const Spacer(),
+                      Text(
+                        '${availableSources.length} sources',
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
+                          color: cs.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      trailing: active
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cs.primary.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.check_rounded,
-                                    size: 14,
-                                    color: cs.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Playing',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: cs.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        if (!active) {
-                          debugPrint('\n🔀 Manual source switch → $s');
-                          setState(() => _selectedSource = s);
-                          _initPlayer(s.url);
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: availableSources.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final s = availableSources[i];
+                        final active = s == _selectedSource;
+                        // Determine quality icon
+                        IconData qualIcon = CupertinoIcons.videocam_fill;
+                        final q = s.quality.toLowerCase();
+                        if (q.contains('4k') || q.contains('2160')) {
+                          qualIcon = CupertinoIcons.star_circle_fill;
+                        } else if (q.contains('1080')) {
+                          qualIcon = CupertinoIcons.check_mark_circled_solid;
+                        } else if (q.contains('720')) {
+                          qualIcon = CupertinoIcons.tv_fill;
+                        } else if (q.contains('480')) {
+                          qualIcon = Icons.sd_rounded;
                         }
+
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? cs.primary.withOpacity(0.15)
+                                : cs.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: active
+                                  ? cs.primary.withOpacity(0.5)
+                                  : cs.outlineVariant.withOpacity(0.4),
+                              width: active ? 1.5 : 0.5,
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            leading: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? cs.primary.withOpacity(0.2)
+                                    : cs.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                qualIcon,
+                                color: active
+                                    ? cs.primary
+                                    : cs.onSurfaceVariant,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              s.quality,
+                              style: GoogleFonts.dmSans(
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                                fontSize: 14,
+                                color: active ? cs.primary : cs.onSurface,
+                              ),
+                            ),
+                            subtitle: Text(
+                              s.serverId == 0
+                                  ? s.source
+                                  : '${s.source} · Server ${s.serverId}',
+                              style: GoogleFonts.dmSans(
+                                color: active
+                                    ? cs.primary.withOpacity(0.7)
+                                    : cs.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: active
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.checkmark_alt,
+                                          size: 14,
+                                          color: cs.primary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Playing',
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 11,
+                                            color: cs.primary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : null,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              if (!active) {
+                                debugPrint('\n🔀 Manual source switch → $s');
+                                setState(() => _selectedSource = s);
+                                _initPlayer(s.url);
+                              }
+                            },
+                          ),
+                        );
                       },
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
-        ),
-      ),
       ),
     );
   }
@@ -1204,7 +1254,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       width: 40,
       height: 5,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
         borderRadius: BorderRadius.circular(3),
       ),
     );
@@ -1221,8 +1271,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: cs.surfaceContainerHighest.withOpacity(0.4),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: cs.outlineVariant.withOpacity(0.1),
+            width: 0.5,
+          ),
         ),
         child: Row(
           children: [
@@ -1239,15 +1293,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
                 ),
               ),
             ),
             Icon(
               CupertinoIcons.chevron_right,
-              color: Colors.white.withOpacity(0.3),
+              color: cs.onSurfaceVariant.withOpacity(0.5),
               size: 16,
             ),
           ],
@@ -1270,27 +1325,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
         decoration: BoxDecoration(
           color: isActive
               ? cs.primary.withOpacity(0.12)
-              : Colors.white.withOpacity(0.06),
+              : cs.surfaceContainerHighest.withOpacity(0.4),
           borderRadius: BorderRadius.circular(14),
-          border: isActive
-              ? Border.all(color: cs.primary.withOpacity(0.3), width: 1)
-              : null,
+          border: Border.all(
+            color: isActive
+                ? cs.primary.withOpacity(0.3)
+                : cs.outlineVariant.withOpacity(0.1),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
             Icon(
               isActive ? CupertinoIcons.checkmark_circle_fill : icon,
-              color: isActive ? cs.primary : Colors.white.withOpacity(0.5),
+              color: isActive
+                  ? cs.primary
+                  : cs.onSurfaceVariant.withOpacity(0.6),
               size: 20,
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? cs.primary : Colors.white,
+                  color: isActive ? cs.primary : cs.onSurface,
                 ),
               ),
             ),
@@ -1303,7 +1363,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 child: Text(
                   'Active',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: cs.primary,
@@ -1321,130 +1381,229 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _buildLoadingView() {
     final cs = Theme.of(context).colorScheme;
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const M3Loading(size: 64),
-          const SizedBox(height: 32),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: animation.drive(
-                    Tween(
-                      begin: const Offset(0.0, 0.2),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOutCubic)),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const M3Loading(size: 64),
+            const SizedBox(height: 32),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: animation.drive(
+                      Tween(
+                        begin: const Offset(0.0, 0.2),
+                        end: Offset.zero,
+                      ).chain(CurveTween(curve: Curves.easeOutCubic)),
+                    ),
+                    child: child,
                   ),
-                  child: child,
+                );
+              },
+              child: Text(
+                _loadingMessages[_messageIndex],
+                key: ValueKey<int>(_messageIndex),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSerifDisplay(
+                  color: cs.primary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
-              );
-            },
-            child: Text(
-              _loadingMessages[_messageIndex],
-              key: ValueKey<int>(_messageIndex),
-              style: GoogleFonts.outfit(
-                color: cs.primary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
               ),
             ),
-          ),
-          if (_showSlowLoadingHint) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              margin: const EdgeInsets.symmetric(horizontal: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    if (!mounted) return;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: cs.errorContainer.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: cs.error.withOpacity(0.2)),
+                color: (isDark ? Colors.black : Colors.white).withOpacity(0.65),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: cs.onSurface.withOpacity(0.1),
+                  width: 0.5,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Icon(Icons.info_outline_rounded, color: cs.error, size: 18),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      'Taking too long? Try changing the server.',
-                      style: GoogleFonts.inter(
-                        color: cs.onErrorContainer,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                  Positioned(
+                    top: -12,
+                    right: -12,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(
+                        CupertinoIcons.clear_circled_solid,
+                        color: cs.onSurface.withOpacity(0.4),
+                        size: 30,
                       ),
                     ),
                   ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cs.error.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          CupertinoIcons.exclamationmark_triangle_fill,
+                          color: cs.error,
+                          size: 44,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Playback Interrupted',
+                        style: GoogleFonts.dmSerifDisplay(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: cs.onSurface,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
+                          height: 1.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _loadMovieStreams();
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: cs.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'Try Again',
+                            style: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ).animate().fadeIn().scale(
-              begin: const Offset(0.9, 0.9),
-              curve: Curves.easeOutBack,
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildErrorView() {
+    // Keep this only as a fallback or remove if fully switched to dialog
     final cs = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
-        child:
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline_rounded, color: cs.error, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Playback Failure',
-                    style: GoogleFonts.outfit(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.exclamationmark_circle,
+                  color: cs.error,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Playback Failure',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSerifDisplay(
+                    color: cs.onSurface,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: Text(
                     _errorMsg,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
                       fontSize: 14,
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: _loadMovieStreams,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text(
-                      'Retry Connection',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: cs.primary,
-                      foregroundColor: cs.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: _loadMovieStreams,
+                  icon: const Icon(CupertinoIcons.refresh),
+                  label: const Text(
+                    'Retry Connection',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
                     ),
                   ),
-                ],
-              ),
-            ).animate().fadeIn().scale(
+                ),
+              ],
+            ),
+          ),
+        ).animate().fadeIn().scale(
               begin: const Offset(0.9, 0.9),
               curve: Curves.easeOutBack,
             ),
@@ -1469,7 +1628,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 (_episodeDetail != null)
                     ? 'S${widget.season} E${widget.episode}: ${_episodeDetail!.name}'
                     : item.title,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.dmSerifDisplay(
                   fontSize: 28, // Reduced slightly for long episode titles
                   fontWeight: FontWeight.w900,
                   height: 1.1,
@@ -1481,7 +1640,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 const SizedBox(height: 4),
                 Text(
                   item.title,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.dmSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: cs.primary,
@@ -1493,14 +1652,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _infoBadge(item.year, Icons.calendar_today_rounded),
+                  _infoBadge(item.year, CupertinoIcons.calendar),
                   _infoBadge(
                     item.ratingStr,
-                    Icons.star_rounded,
+                    CupertinoIcons.star_fill,
                     iconColor: Colors.amber,
                   ),
                   if (item.runtime != null)
-                    _infoBadge('${item.runtime}m', Icons.schedule_rounded),
+                    _infoBadge('${item.runtime}m', CupertinoIcons.time),
                 ],
               ).animate().fadeIn(delay: 100.ms),
             ],
@@ -1508,7 +1667,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           const SizedBox(height: 32),
           Text(
             'SYNOPSIS',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.dmSans(
               color: cs.primary,
               fontSize: 14,
               fontWeight: FontWeight.w900,
@@ -1530,7 +1689,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           const SizedBox(height: 40),
           Text(
             'TOP CAST',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.dmSans(
               color: cs.primary,
               fontSize: 14,
               fontWeight: FontWeight.w900,
@@ -1557,7 +1716,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           : null,
                       child: p.fullProfileUrl.isEmpty
                           ? Icon(
-                              Icons.person_rounded,
+                              CupertinoIcons.person_fill,
                               color: cs.onSurfaceVariant,
                               size: 32,
                             )
@@ -1571,7 +1730,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: cs.onSurface,
@@ -1604,7 +1763,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           const SizedBox(width: 6),
           Text(
             label,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.dmSans(
               fontSize: 14,
               fontWeight: FontWeight.bold,
               color: cs.onSurface,
@@ -1683,19 +1842,20 @@ class _ShortcutInfo extends StatelessWidget {
             ),
             child: Text(
               keyLabel,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: cs.primary,
+              style: GoogleFonts.dmSerifDisplay(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: cs.onSurface,
               ),
             ),
           ),
           const SizedBox(width: 12),
           Text(
             action,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: cs.onSurface.withOpacity(0.8),
+            style: GoogleFonts.dmSans(
+              fontSize: 11,
+              color: cs.onSurfaceVariant,
+              height: 1.4,
             ),
           ),
         ],

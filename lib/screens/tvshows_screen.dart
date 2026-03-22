@@ -98,7 +98,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [const M3Loading(message: 'Loading shows...')],
+                children: [const M3Loading(message: 'Gathering your favorite shows...')],
               ),
             )
           : RefreshIndicator.adaptive(
@@ -157,26 +157,24 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
 
   Widget _buildAppBar(ColorScheme cs) {
     return SliverAppBar(
-      expandedHeight: 100,
       floating: true,
       pinned: true,
-      stretch: true,
-      backgroundColor: cs.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: false,
-        titlePadding: const EdgeInsets.only(left: 20, bottom: 14),
-        title: Row(
+      toolbarHeight: 56,
+      title: Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Row(
           children: [
-            Image.asset('assets/ic_launcher.png', width: 28, height: 28),
-            const SizedBox(width: 10),
+            Image.asset('assets/ic_launcher.png', width: 24, height: 24).animate().fadeIn(duration: 400.ms),
+            const SizedBox(width: 8),
             RichText(
               text: TextSpan(
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+                style: GoogleFonts.dmSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
                 ),
                 children: [
@@ -186,23 +184,25 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                   ),
                   TextSpan(
                     text: 'Shows',
-                    style: TextStyle(color: cs.primary),
+                    style: TextStyle(color: const Color(0xFFE50914)),
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
           ],
         ),
       ),
       actions: [
-        IconButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SearchScreen()),
-          ),
-          icon: Icon(CupertinoIcons.search, color: cs.onSurface, size: 22),
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchScreen()),
+            ),
+            icon: Icon(CupertinoIcons.search, color: cs.onSurface, size: 24),
+          ).animate().fadeIn(delay: 200.ms),
         ),
-        const SizedBox(width: 6),
       ],
     );
   }
@@ -265,46 +265,46 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                       ),
                       // Content
                       Positioned(
-                        left: 16,
-                        right: 16,
-                        bottom: 16,
+                        left: 20,
+                        right: 20,
+                        bottom: 20,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
+                                horizontal: 10,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE50914),
-                                borderRadius: BorderRadius.circular(6),
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white.withOpacity(0.3), width: 0.5),
                               ),
                               child: Text(
                                 'TRENDING #${i + 1}',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.dmSans(
                                   color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
                                   letterSpacing: 1.2,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             Text(
                               item.title,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.dmSerifDisplay(
                                 color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                height: 1.15,
+                                fontSize: 26,
+                                height: 1.1,
                                 letterSpacing: -0.5,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             Row(
                               children: [
                                 if (item.voteAverage > 0) ...[
@@ -316,7 +316,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                                   const SizedBox(width: 4),
                                   Text(
                                     item.ratingStr,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.dmSans(
                                       color: Colors.white70,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -326,7 +326,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                                 ],
                                 Text(
                                   item.year,
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.white54,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -396,10 +396,8 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
               const SizedBox(width: 10),
               Text(
                 title,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: 20,
                   color: cs.onSurface,
                 ),
               ),
@@ -416,7 +414,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                 ),
                 child: Text(
                   'See all',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: cs.primary,
@@ -428,20 +426,20 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
         ),
         const SizedBox(height: 14),
         SizedBox(
-          height: 210,
+          height: 220,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (_, i) => _TvPosterCard(
               item: items[i],
               onTap: () => _openDetail(items[i]),
             ).animate().fadeIn(delay: (i * 40).ms, duration: 350.ms),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 32),
       ],
     ).animate().fadeIn(delay: delay.ms);
   }
@@ -495,7 +493,7 @@ class _TvPosterCard extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 0,
-              height: 80,
+              height: 100,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -503,8 +501,9 @@ class _TvPosterCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.85),
+                      Colors.black.withOpacity(0.95),
                     ],
+                    stops: const [0.1, 1.0]
                   ),
                 ),
               ),
@@ -539,7 +538,7 @@ class _TvPosterCard extends StatelessWidget {
                       const SizedBox(width: 2),
                       Text(
                         item.ratingStr,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -550,16 +549,17 @@ class _TvPosterCard extends StatelessWidget {
                 ),
               ),
             Positioned(
-              bottom: 10,
-              left: 10,
-              right: 10,
+              bottom: 12,
+              left: 12,
+              right: 12,
               child: Text(
                 item.title,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                   height: 1.25,
+                  letterSpacing: -0.2,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

@@ -9,6 +9,8 @@ class MediaItem {
   final List<int> genreIds;
   final String mediaType; // 'movie' or 'tv'
   final String? extraInfo;
+  final int? position; // Playback position in ms
+  final int? duration; // Total duration in ms
 
   MediaItem({
     required this.id,
@@ -21,6 +23,8 @@ class MediaItem {
     this.genreIds = const [],
     required this.mediaType,
     this.extraInfo,
+    this.position,
+    this.duration,
   });
 
   factory MediaItem.fromMovieJson(Map<String, dynamic> json) {
@@ -69,6 +73,8 @@ class MediaItem {
       genreIds: List<int>.from(json['genre_ids'] ?? []),
       mediaType: json['media_type'] ?? 'movie',
       extraInfo: json['extra_info'],
+      position: json['position'],
+      duration: json['duration'],
     );
   }
 
@@ -84,6 +90,8 @@ class MediaItem {
       'genre_ids': genreIds,
       'media_type': mediaType,
       'extra_info': extraInfo,
+      'position': position,
+      'duration': duration,
     };
   }
 

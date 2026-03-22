@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
 
@@ -39,7 +40,10 @@ class WatchHistory {
     if (_history.length > 20) {
       _history.removeLast();
     }
-    listChanged.value++;
+    // FIX: Defer notification to avoid "setState() or markNeedsBuild() called during build"
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      listChanged.value++;
+    });
     save(); // Auto-save
   }
 }

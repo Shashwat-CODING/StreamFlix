@@ -93,9 +93,8 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
               RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.dmSerifDisplay(
                         fontSize: 42,
-                        fontWeight: FontWeight.w900,
                         letterSpacing: -1.5,
                         height: 1,
                       ),
@@ -120,7 +119,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
               Text(
                 widget.title.toUpperCase(),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.dmSans(
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w800,
                   fontSize: 13,

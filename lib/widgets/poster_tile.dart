@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/tmdb_service.dart';
 import '../services/library_service.dart';
+import '../models/media_item.dart';
 
 class PosterTile extends StatelessWidget {
   const PosterTile({super.key, required this.item, required this.onTap});
-  final TmdbItem item;
+  final MediaItem item;
   final VoidCallback onTap;
 
   @override
@@ -63,7 +64,7 @@ class PosterTile extends StatelessWidget {
 
 class _WatchLaterButton extends StatefulWidget {
   const _WatchLaterButton({required this.item});
-  final TmdbItem item;
+  final MediaItem item;
 
   @override
   State<_WatchLaterButton> createState() => _WatchLaterButtonState();

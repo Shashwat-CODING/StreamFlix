@@ -2,7 +2,7 @@ name: streamflix
 description: "StreamFlix – All-in-one streaming app for Movies, TV, Anime, Live TV & Sports."
 publish_to: 'none'
 
-version: 1.4.0+1
+version: 1.7.0
 
 environment:
   sdk: ^3.11.0

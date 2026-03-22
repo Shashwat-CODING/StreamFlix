@@ -86,27 +86,12 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(cs),
-            _buildFilters(cs),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _loading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [const M3Loading(message: 'Searching...')],
-                        ),
-                      )
-                    : !_hasSearched
-                    ? _buildEmpty(cs)
-                    : _filteredResults.isEmpty
-                    ? _buildNoResults(cs)
-                    : _buildResults(cs),
-              ),
-            ),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(cs)),
+            SliverToBoxAdapter(child: _buildFilters(cs)),
+            _buildResultsSliver(cs),
           ],
         ),
       ),
@@ -157,14 +142,14 @@ class _SearchScreenState extends State<SearchScreen> {
                     controller: _controller,
                     focusNode: _focusNode,
                     onChanged: _onChanged,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                       color: cs.onSurface,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search for movies, TV shows...',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                         color: cs.onSurfaceVariant.withOpacity(0.5),
@@ -253,7 +238,7 @@ class _SearchScreenState extends State<SearchScreen> {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.dmSans(
             fontSize: 13,
             fontWeight: selected ? FontWeight.bold : FontWeight.w500,
             color: selected
@@ -266,7 +251,27 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildResults(ColorScheme cs) {
+  Widget _buildResultsSliver(ColorScheme cs) {
+    if (_loading) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [const M3Loading(message: 'Searching...')],
+          ),
+        ),
+      );
+    }
+    if (!_hasSearched) {
+      return SliverFillRemaining(hasScrollBody: false, child: _buildEmpty(cs));
+    }
+    if (_filteredResults.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _buildNoResults(cs),
+      );
+    }
+
     final list = _filteredResults;
     final width = MediaQuery.of(context).size.width;
     int crossAxisCount = 2;
@@ -278,18 +283,20 @@ class _SearchScreenState extends State<SearchScreen> {
       crossAxisCount = 3;
     }
 
-    return GridView.builder(
-      key: const ValueKey('results_grid'),
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        childAspectRatio: 0.68,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          childAspectRatio: 0.68,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, i) => _buildResultCard(list[i], i, cs),
+          childCount: list.length,
+        ),
       ),
-      itemCount: list.length,
-      itemBuilder: (context, i) => _buildResultCard(list[i], i, cs),
     );
   }
 
@@ -373,7 +380,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     child: Text(
                       item.mediaType == 'tv' ? 'TV' : 'MOVIE',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
@@ -395,7 +402,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         item.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -433,7 +440,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   item.voteAverage > 0
                                       ? item.voteAverage.toStringAsFixed(1)
                                       : 'NR',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.white,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
@@ -477,9 +484,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 24),
                   Text(
                     'Explore StreamFlix',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSerifDisplay(
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
                       color: cs.onSurface,
                       letterSpacing: -0.5,
                     ),
@@ -490,7 +496,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: Text(
                       'Discover thousands of movies and TV shows from around the world.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 15,
                         color: cs.onSurfaceVariant.withOpacity(0.7),
                         height: 1.5,
@@ -528,7 +534,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 24),
           Text(
             'No matches found',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.dmSans(
               fontSize: 20,
               fontWeight: FontWeight.w800,
               color: cs.onSurface,
@@ -537,7 +543,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 8),
           Text(
             'Try different keywords or filters.',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.dmSans(
               fontSize: 14,
               color: cs.onSurfaceVariant.withOpacity(0.6),
             ),

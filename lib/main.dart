@@ -14,6 +14,7 @@ import 'services/bookmark_service.dart';
 import 'services/update_service.dart';
 import 'screens/library_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,7 @@ class StreamFlixApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-          themeMode: ThemeMode.dark,
+          themeMode: ThemeMode.system,
           home: const MainNavigation(),
         );
       },
@@ -141,9 +142,10 @@ class _MainNavigationState extends State<MainNavigation> {
             const SizedBox(width: 12),
             Text(
               'Update Available',
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 color: cs.onSurface,
                 fontWeight: FontWeight.w800,
+                fontSize: 18,
               ),
             ),
           ],
@@ -154,7 +156,7 @@ class _MainNavigationState extends State<MainNavigation> {
           children: [
             Text(
               'A new version (${update['version']}) of StreamFlix is available. Would you like to update now?',
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 color: cs.onSurfaceVariant,
                 fontSize: 14,
                 height: 1.5,
@@ -165,14 +167,18 @@ class _MainNavigationState extends State<MainNavigation> {
               const SizedBox(height: 16),
               const Text(
                 'What\'s new:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  fontFamily: 'DM Sans',
+                ),
               ),
               const SizedBox(height: 8),
               Flexible(
                 child: SingleChildScrollView(
                   child: Text(
                     update['changelog'],
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: cs.onSurfaceVariant,
                       fontSize: 12,
                       height: 1.4,
@@ -203,9 +209,9 @@ class _MainNavigationState extends State<MainNavigation> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Update Now',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -220,7 +226,8 @@ class _MainNavigationState extends State<MainNavigation> {
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: isDark
             ? Brightness.light
@@ -246,12 +253,12 @@ class _MainNavigationState extends State<MainNavigation> {
                   unselectedIconTheme: IconThemeData(
                     color: cs.onSurface.withOpacity(0.45),
                   ),
-                  selectedLabelTextStyle: TextStyle(
+                  selectedLabelTextStyle: GoogleFonts.dmSans(
                     color: cs.primary,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
-                  unselectedLabelTextStyle: TextStyle(
+                  unselectedLabelTextStyle: GoogleFonts.dmSans(
                     color: cs.onSurface.withOpacity(0.45),
                     fontSize: 12,
                   ),
@@ -268,7 +275,7 @@ class _MainNavigationState extends State<MainNavigation> {
                         const SizedBox(height: 4),
                         Text(
                           'StreamFlix',
-                          style: TextStyle(
+                          style: GoogleFonts.dmSerifDisplay(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             color: cs.primary,
@@ -361,44 +368,48 @@ class _LiquidGlassNavBar extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(40),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
                 child: Container(
                   height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    // Real Liquid Glass: Enhanced translucency + subtle highlights
+                    // Ultra-Liquid Glass: Deeply translucent to let colors "bleed" through
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: isDark
                           ? [
-                              Colors.white.withOpacity(0.12),
-                              Colors.white.withOpacity(0.04),
+                              Colors.white.withOpacity(0.05),
+                              Colors.white.withOpacity(0.02),
                             ]
                           : [
-                              Colors.white.withOpacity(0.65),
-                              Colors.white.withOpacity(0.35),
+                              Colors.white.withOpacity(0.4),
+                              Colors.white.withOpacity(0.1),
                             ],
                     ),
                     borderRadius: BorderRadius.circular(40),
                     border: Border.all(
                       color: isDark
-                          ? Colors.white.withOpacity(0.15)
-                          : Colors.white.withOpacity(0.9),
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.black.withOpacity(0.06),
                       width: 0.5,
                     ),
                     boxShadow: [
+                      // Subtle "floating" outer shadow
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.35 : 0.15),
+                        color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
                         blurRadius: 30,
-                        spreadRadius: -4,
+                        spreadRadius: -6,
                         offset: const Offset(0, 10),
                       ),
+                      // Subtle inner brand glow to "mix" with background
                       BoxShadow(
-                        color: cs.primary.withOpacity(0.08),
+                        color: cs.primary.withOpacity(isDark ? 0.06 : 0.04),
                         blurRadius: 20,
-                        spreadRadius: -2,
-                        offset: const Offset(0, 4),
+                        spreadRadius: -4,
                       ),
                     ],
                   ),
@@ -451,9 +462,18 @@ class _GlassNavItem extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? accentColor.withOpacity(isDark ? 0.22 : 0.14)
+              ? accentColor.withOpacity(isDark ? 0.28 : 0.18)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(40),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: accentColor.withOpacity(isDark ? 0.15 : 0.1),
+                    blurRadius: 10,
+                    spreadRadius: -2,
+                  )
+                ]
+              : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -467,22 +487,21 @@ class _GlassNavItem extends StatelessWidget {
                 color: selected
                     ? accentColor
                     : (isDark
-                          ? Colors.white.withOpacity(0.5)
-                          : Colors.black.withOpacity(0.45)),
+                        ? Colors.white.withOpacity(0.8)
+                        : Colors.black.withOpacity(0.7)),
               ),
             ),
             const SizedBox(height: 2),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              style: GoogleFonts.dmSans(
+                fontSize: 9.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                 color: selected
                     ? accentColor
                     : (isDark
-                          ? Colors.white.withOpacity(0.5)
-                          : Colors.black.withOpacity(0.45)),
-                fontFamily: 'Inter',
+                        ? Colors.white.withOpacity(0.8)
+                        : Colors.black.withOpacity(0.7)),
               ),
               child: Text(item.label),
             ),
