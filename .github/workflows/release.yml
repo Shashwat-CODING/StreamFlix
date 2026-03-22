@@ -30,6 +30,15 @@ jobs:
           channel: "stable"
           cache: true
 
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ${{ env.PUB_CACHE }}
+          key: pub-cache-windows-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-cache-windows-
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -37,7 +46,12 @@ jobs:
         run: flutter build windows --release
 
       - name: Install NSIS
-        run: choco install nsis -y
+        shell: pwsh
+        run: |
+          choco install nsis -y
+          # choco does not update PATH in the current session; add it manually
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          echo "$nsisPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Create NSIS installer script
         shell: pwsh
@@ -95,7 +109,9 @@ jobs:
           Set-Content -Path "installer.nsi" -Value $nsisScript
 
       - name: Compile NSIS installer
-        run: makensis installer.nsi
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -129,12 +145,18 @@ jobs:
             libegl1-mesa-dev libgl1-mesa-dev \
             libgles2-mesa-dev
 
-      # Same fix: channel only, no flutter-version
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
           cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-cache-linux-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-cache-linux-
 
       - name: Install dependencies
         run: flutter pub get
