@@ -123,7 +123,11 @@ jobs:
             libglib2.0-dev libpango1.0-dev libcairo2-dev \
             libgdk-pixbuf2.0-dev libatk1.0-dev \
             fuse libfuse2 \
-            file wget curl
+            file wget curl \
+            libmpv-dev mpv \
+            libepoxy-dev \
+            libegl1-mesa-dev libgl1-mesa-dev \
+            libgles2-mesa-dev
 
       # Same fix: channel only, no flutter-version
       - name: Set up Flutter
