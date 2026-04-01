@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/logo.png" width="180" alt="StreamFlix Logo">
-  <h1 align="center">StreamFlix</h1>
+  <img src="assets/logo.png" width="180" alt="Drishya Logo">
+  <h1 align="center">Drishya</h1>
   <p align="center"><b>Your ultimate all-in-one streaming hub for Movies, TV Shows, Anime, Live TV, and Sports.</b></p>
 </p>
 
 ---
 
-StreamFlix is a premium Flutter-based streaming application designed to provide a seamless and high-quality entertainment experience. With a sleek user interface and powerful features, it brings together your favorite content under one roof.
+Drishya is a premium Flutter-based streaming application designed to provide a seamless and high-quality entertainment experience. With a sleek user interface and powerful features, it brings together your favorite content under one roof.
 
 ## ✨ Features
 
@@ -42,11 +42,11 @@ To get a local copy up and running, follow these simple steps.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/streamflix.git
+   git clone https://github.com/yourusername/Drishya.git
    ```
 2. Navigate to the project directory:
    ```bash
-   cd streamflix
+   cd Drishya
    ```
 3. Install dependencies:
    ```bash
