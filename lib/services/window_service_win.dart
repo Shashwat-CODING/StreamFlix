@@ -1,34 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:win32_registry/win32_registry.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:win32_registry/win32_registry.dart';
 
-class WindowService {
-  static Future<void> init() async {
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      await windowManager.ensureInitialized();
-      WindowOptions windowOptions = const WindowOptions(
-        size: Size(1280, 800),
-        minimumSize: Size(1000, 600),
-        center: true,
-        backgroundColor: Colors.transparent,
-        skipTaskbar: false,
-        titleBarStyle: TitleBarStyle.normal,
-        title: "Drishya",
-      );
-      windowManager.waitUntilReadyToShow(windowOptions, () async {
-        await windowManager.show();
-        await windowManager.focus();
-      });
-
-      if (Platform.isWindows) {
-        await _registerProtocol('drishya');
-      }
-    }
-  }
-
-  static Future<void> _registerProtocol(String scheme) async {
+class WindowServiceWin {
+  static Future<void> registerProtocol(String scheme) async {
     if (!Platform.isWindows) return;
+    
     try {
       final appPath = Platform.resolvedExecutable;
       final protocolRegKey = 'Software\\Classes\\$scheme';
