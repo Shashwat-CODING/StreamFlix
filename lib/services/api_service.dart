@@ -45,22 +45,18 @@ class ApiService {
 
   Future<bool> validateBaseUrl(String url) async {
     try {
-      String formatted = url.trim();
-      if (formatted.endsWith('/'))
+      // 1. Clean up the URL (trim whitespace and trailing quotes/junk)
+      String formatted = url.trim().replaceAll(RegExp(r"['\"" \s]+$"), '');
+      if (formatted.endsWith('/')) {
         formatted = formatted.substring(0, formatted.length - 1);
-
-      // Fetch /health from the root or provided path
-      final uri = Uri.parse('$formatted/health');
-      _logReq(uri.toString());
-
-      // Increased timeout to 20s as requested
-      final res = await http.get(uri).timeout(const Duration(seconds: 20));
-      _logRes(uri.toString(), res.statusCode);
-
-      if (res.statusCode == 200) {
-        final body = res.body.trim().toLowerCase();
-        return body == 'ok';
       }
+
+      // 2. Try health check at root /health first
+      if (await _checkHealth('$formatted/health')) return true;
+
+      // 3. Try health check at /api/health
+      if (await _checkHealth('$formatted/api/health')) return true;
+
       return false;
     } catch (e) {
       _logErr(url, e);
@@ -68,8 +64,23 @@ class ApiService {
     }
   }
 
+  Future<bool> _checkHealth(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      _logReq(uri.toString());
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      _logRes(uri.toString(), res.statusCode);
+
+      if (res.statusCode == 200) {
+        final body = res.body.trim().toLowerCase();
+        return body == 'ok';
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Future<void> setBaseUrl(String url) async {
-    String formatted = url.trim();
+    String formatted = url.trim().replaceAll(RegExp(r"['\"" \s]+$"), '');
     if (formatted.endsWith('/')) {
       formatted = formatted.substring(0, formatted.length - 1);
     }
