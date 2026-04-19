@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:win32_registry/win32_registry.dart';
 import 'dart:io';
 
 class WindowService {
@@ -19,6 +20,36 @@ class WindowService {
         await windowManager.show();
         await windowManager.focus();
       });
+
+      if (Platform.isWindows) {
+        await _registerProtocol('drishya');
+      }
+    }
+  }
+
+  static Future<void> _registerProtocol(String scheme) async {
+    try {
+      final appPath = Platform.resolvedExecutable;
+      final protocolRegKey = 'Software\\Classes\\$scheme';
+      
+      // Register the protocol
+      final regKey = Registry.currentUser.createKey(protocolRegKey);
+      regKey.createValue(const RegistryValue(
+        'URL Protocol',
+        RegistryValueType.string,
+        '',
+      ));
+      
+      // Register the command to open the app
+      final commandKey = regKey.createKey('shell\\open\\command');
+      commandKey.createValue(const RegistryValue(
+        '',
+        RegistryValueType.string,
+        '"$appPath" "%1"',
+      ));
+      debugPrint('Windows: Protocol $scheme:// registered successfully.');
+    } catch (e) {
+      debugPrint('Windows: Failed to register protocol: $e');
     }
   }
 }
