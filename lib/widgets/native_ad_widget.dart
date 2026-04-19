@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'shimmer_placeholder.dart';
@@ -115,6 +116,9 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return const SizedBox.shrink();
+    }
     if (_adFailed) {
       debugPrint('🙈 [AD] Hiding failed ad widget');
       return const SizedBox.shrink();

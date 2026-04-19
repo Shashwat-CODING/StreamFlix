@@ -207,6 +207,7 @@ class StreamingService {
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const InitializationSettings initializationSettings = InitializationSettings(
         android: initializationSettingsAndroid,
+        linux: LinuxInitializationSettings(defaultActionName: 'Open'),
       );
       await _notificationsPlugin.initialize(initializationSettings);
       
@@ -271,37 +272,22 @@ class StreamingService {
         }
 
         if (FoundMetaFiles.isNotEmpty) {
-          // Sort by modified time to get the latest one first, or just merge all
           FoundMetaFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-          
           final Map<String, DownloadItem> merged = {};
-          // Merge from oldest to newest so newest wins if same ID
           for (final file in FoundMetaFiles.reversed) {
             try {
               final content = await file.readAsString();
               final List decoded = jsonDecode(content);
               final List<DownloadItem> items = decoded.map((e) => DownloadItem.fromJson(e)).toList();
-              for (var i in items) {
-                merged[i.id] = i;
-              }
+              for (var i in items) merged[i.id] = i;
               restoredFromExternal = true;
-            } catch (e) {
-              _logErr("Failed to read ${file.path}", e);
-            }
+            } catch (e) { _logErr("Failed to read ${file.path}", e); }
           }
-
-          // Merge with local items
-          for (var i in localItems) {
-            merged[i.id] = i; 
-          }
+          for (var i in localItems) merged[i.id] = i;
           localItems = merged.values.toList();
           _logInfo("Restored ${localItems.length} downloads from ${FoundMetaFiles.length} external metadata files.");
-        } else {
-          _logInfo("No external metadata.json found.");
         }
-      } catch (e) {
-        _logErr("Metadata Restore", e);
-      }
+      } catch (e) { _logErr("Metadata Restore", e); }
     }
 
     // Filter to only items that actually exist on disk (validate storage)
@@ -367,8 +353,15 @@ class StreamingService {
       await PermissionService.requestAll();
     }
 
-    final internalDir = await getApplicationSupportDirectory();
-    final downloadDir = Directory('${internalDir.path}/downloads');
+    final Directory downloadDir;
+    if (Platform.isAndroid) {
+      final internalDir = await getApplicationSupportDirectory();
+      downloadDir = Directory('${internalDir.path}/downloads');
+    } else {
+      final dir = await getDownloadsDirectory();
+      downloadDir = dir ?? await getApplicationSupportDirectory();
+    }
+
     if (!await downloadDir.exists()) {
       await downloadDir.create(recursive: true);
     }
@@ -517,11 +510,12 @@ class StreamingService {
 
       item.status = DownloadStatus.completed;
       item.downloadedBytes = item.totalBytes;
-      _logInfo("Download internal complete for ${item.mediaItem.title}. Saving to MediaStore...");
+      _logInfo("Download complete for ${item.mediaItem.title}.");
       
-      // Save to public storage
+      // Save to public storage (Android Only)
       if (Platform.isAndroid) {
         try {
+          _logInfo("Saving to Android MediaStore...");
           final String fileName = item.savedPath.split('/').last;
           final SaveInfo? saveInfo = await _mediaStore.saveFile(
             tempFilePath: item.savedPath,
@@ -531,10 +525,6 @@ class StreamingService {
           
           if (saveInfo != null) {
             _logInfo("Saved to public MediaStore successfully: ${saveInfo.name}");
-            // Update savedPath to point to the public location for future indexing
-            // Note: on Android 10+, direct path access to other app's files is restricted,
-            // but for our own files in public folders, it often works or we use MediaStore URI.
-            // For now, let's point to the likely public path.
             final publicPath = "/storage/emulated/0/Movies/Drishya/$fileName";
             final tempFile = File(item.savedPath);
             

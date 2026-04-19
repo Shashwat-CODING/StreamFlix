@@ -386,6 +386,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
   ) {
     if (items.isEmpty) return const SizedBox.shrink();
     final cs = Theme.of(context).colorScheme;
+    final isDesktop = MediaQuery.of(context).size.width >= 720;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -434,20 +435,40 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 220,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+        if (isDesktop)
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 14),
-            itemBuilder: (_, i) => _TvPosterCard(
-              item: items[i],
-              onTap: () => _openDetail(items[i]),
-            ).animate().fadeIn(delay: (i * 40).ms, duration: 350.ms),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length.clamp(0, 12),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 155,
+                childAspectRatio: 2 / 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (_, i) => _TvPosterCard(
+                item: items[i],
+                onTap: () => _openDetail(items[i]),
+              ).animate().fadeIn(delay: (i * 28).ms, duration: 280.ms),
+            ),
+          )
+        else
+          SizedBox(
+            height: 220,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
+              itemBuilder: (_, i) => _TvPosterCard(
+                item: items[i],
+                onTap: () => _openDetail(items[i]),
+              ).animate().fadeIn(delay: (i * 40).ms, duration: 350.ms),
+            ),
           ),
-        ),
         const SizedBox(height: 32),
       ],
     ).animate().fadeIn(delay: delay.ms);

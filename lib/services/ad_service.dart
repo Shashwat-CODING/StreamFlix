@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -8,6 +9,7 @@ class AdService {
   static const String _adUnitId = 'ca-app-pub-3775138178121742/7433297377';
 
   static void loadRewardedAd() {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     if (_isLoading || _rewardedAd != null) return;
     _isLoading = true;
     
@@ -35,6 +37,10 @@ class AdService {
     required VoidCallback onComplete,
     String? message,
   }) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      onComplete();
+      return;
+    }
     if (_rewardedAd == null) {
       debugPrint('Ad show request but not loaded. Proceeding implicitly.');
       onComplete();

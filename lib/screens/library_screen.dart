@@ -345,150 +345,179 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildDownloadsList(List<DownloadItem> items, ColorScheme cs) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final item = items[index];
-          final mi = item.mediaItem;
-          return Padding(
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.crossAxisExtent >= 700;
+
+        if (isDesktop) {
+          return SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 400,
+                mainAxisExtent: 120,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
               ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: mi.fullPosterUrl,
-                      width: 60,
-                      height: 90,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => Container(
-                        width: 60, height: 90, color: cs.surfaceContainerHighest,
-                        child: Icon(CupertinoIcons.film, color: cs.onSurfaceVariant),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildDownloadItem(items[index], cs),
+                childCount: items.length,
+              ),
+            ),
+          );
+        }
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: _buildDownloadItem(items[index], cs),
+            ),
+            childCount: items.length,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDownloadItem(DownloadItem item, ColorScheme cs) {
+    final mi = item.mediaItem;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: mi.fullPosterUrl,
+              width: 60,
+              height: 90,
+              fit: BoxFit.cover,
+              errorWidget: (_, _, _) => Container(
+                width: 60,
+                height: 90,
+                color: cs.surfaceContainerHighest,
+                child: Icon(CupertinoIcons.film, color: cs.onSurfaceVariant),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  mi.title,
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      item.status.name.toUpperCase(),
+                      style: GoogleFonts.dmSans(
+                        color: item.status == DownloadStatus.failed
+                            ? Colors.red
+                            : (item.status == DownloadStatus.completed
+                                ? Colors.green
+                                : cs.primary),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          mi.title,
-                          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                    if (item.sourceLabel != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Text(
-                              item.status.name.toUpperCase(),
-                              style: GoogleFonts.dmSans(
-                                color: item.status == DownloadStatus.failed ? Colors.red : 
-                                      (item.status == DownloadStatus.completed ? Colors.green : cs.primary),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            if (item.sourceLabel != null) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: cs.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
-                                ),
-                                child: Text(
-                                  item.sourceLabel!,
-                                  style: GoogleFonts.dmSans(
-                                    color: cs.primary,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        if (item.status == DownloadStatus.downloading || item.status == DownloadStatus.paused) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: item.progress,
-                                  backgroundColor: cs.surfaceContainerHighest,
-                                  color: cs.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${(item.progress * 100).toInt()}%',
-                                style: GoogleFonts.dmSans(
-                                  color: cs.onSurfaceVariant,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        child: Text(
+                          item.sourceLabel!,
+                          style: GoogleFonts.dmSans(
+                            color: cs.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (item.status == DownloadStatus.downloading ||
+                    item.status == DownloadStatus.paused) ...[
+                  const SizedBox(height: 8),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (item.status == DownloadStatus.downloading)
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.pause_fill),
-                          onPressed: () {
-                            StreamingService.instance.pauseDownload(item.id);
-                            setState(() {});
-                          },
-                        ),
-                      if (item.status == DownloadStatus.paused || item.status == DownloadStatus.failed)
-                        IconButton(
-                          icon: Icon(item.status == DownloadStatus.failed ? CupertinoIcons.refresh_circled_solid : CupertinoIcons.play_fill),
-                          color: item.status == DownloadStatus.failed ? Colors.red : null,
-                          onPressed: () {
-                            StreamingService.instance.resumeDownload(item.id);
-                            setState(() {});
-                          },
-                        ),
-                      if (item.status == DownloadStatus.completed)
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.play_circle_fill, size: 32),
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: item.progress,
+                          backgroundColor: cs.surfaceContainerHighest,
                           color: cs.primary,
-                          onPressed: () {
-                            // Offline Playback using existing PlayerScreen
-                            // PlayerScreen needs to be able to accept a local URL, but actually `media_kit` plays `file://` urls seamlessly!
-                            // Since PlayerScreen relies on TMDB ID to fetch streams from Drishya backend, 
-                            // we need a minor bypass in PlayerScreen if user wants to play local file directly.
-                            _playDownloadedFile(item);
-                          },
                         ),
-                      IconButton(
-                        icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent),
-                        onPressed: () {
-                          StreamingService.instance.cancelDownload(item.id);
-                          setState(() {});
-                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(item.progress * 100).toInt()}%',
+                        style: GoogleFonts.dmSans(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ],
-              ),
+              ],
             ),
-          );
-        },
-        childCount: items.length,
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.status == DownloadStatus.downloading)
+                IconButton(
+                  icon: const Icon(CupertinoIcons.pause_fill),
+                  onPressed: () {
+                    StreamingService.instance.pauseDownload(item.id);
+                    if (mounted) setState(() {});
+                  },
+                ),
+              if (item.status == DownloadStatus.paused || item.status == DownloadStatus.failed)
+                IconButton(
+                  icon: Icon(item.status == DownloadStatus.failed
+                      ? CupertinoIcons.refresh_circled_solid
+                      : CupertinoIcons.play_fill),
+                  color: item.status == DownloadStatus.failed ? Colors.red : null,
+                  onPressed: () {
+                    StreamingService.instance.resumeDownload(item.id);
+                    if (mounted) setState(() {});
+                  },
+                ),
+              if (item.status == DownloadStatus.completed)
+                IconButton(
+                  icon: const Icon(CupertinoIcons.play_circle_fill, size: 32),
+                  color: cs.primary,
+                  onPressed: () => _playDownloadedFile(item),
+                ),
+              IconButton(
+                icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent),
+                onPressed: () {
+                  StreamingService.instance.cancelDownload(item.id);
+                  if (mounted) setState(() {});
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

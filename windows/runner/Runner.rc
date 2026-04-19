@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "streamflix" "\0"
+            VALUE "CompanyName", "com.shashwat" "\0"
+            VALUE "FileDescription", "Drishya" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "streamflix" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "streamflix.exe" "\0"
-            VALUE "ProductName", "streamflix" "\0"
+            VALUE "InternalName", "drishya" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.shashwat. All rights reserved." "\0"
+            VALUE "OriginalFilename", "drishya.exe" "\0"
+            VALUE "ProductName", "Drishya" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

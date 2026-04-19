@@ -3,9 +3,12 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   dynamic_color
-  media_kit_libs_windows_video
-  media_kit_video
+  flutter_inappwebview_windows
+  fvp
+  permission_handler_windows
+  share_plus
   url_launcher_windows
 )
 
