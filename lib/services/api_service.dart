@@ -46,7 +46,7 @@ class ApiService {
   Future<bool> validateBaseUrl(String url) async {
     try {
       // 1. Clean up the URL (trim whitespace and trailing quotes/junk)
-      String formatted = url.trim().replaceAll(RegExp(r"['\"" \s]+$"), '');
+      String formatted = url.trim().replaceAll(RegExp(r'''['" \s]+$'''), '');
       if (formatted.endsWith('/')) {
         formatted = formatted.substring(0, formatted.length - 1);
       }
@@ -80,7 +80,7 @@ class ApiService {
   }
 
   Future<void> setBaseUrl(String url) async {
-    String formatted = url.trim().replaceAll(RegExp(r"['\"" \s]+$"), '');
+    String formatted = url.trim().replaceAll(RegExp(r'''['" \s]+$'''), '');
     if (formatted.endsWith('/')) {
       formatted = formatted.substring(0, formatted.length - 1);
     }
