@@ -8,11 +8,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/m3_loading.dart';
 import '../models/media_item.dart';
-import '../services/tmdb_service.dart';
+import '../services/api_service.dart';
 import '../widgets/shimmer_placeholder.dart';
 import 'detail_screen.dart';
 import '../services/watch_history.dart';
 import 'search_screen.dart';
+import '../widgets/native_ad_widget.dart';
+import '../widgets/banner_ad_widget.dart';
 
 // ── Design tokens (shared with DetailScreen) ──────────────────────────────────
 
@@ -47,7 +49,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _service = TmdbService();
+  final _api = ApiService.instance;
   List<MediaItem> _trending = [];
   List<MediaItem> _popularMovies = [];
   List<MediaItem> _nowPlayingMovies = [];
@@ -78,10 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.getTrendingMovies(),
-      _service.getPopularMovies(),
-      _service.getNowPlayingMovies(),
-      _service.getAnimeMovies(),
+      _api.getTrendingMovies(),
+      _api.getPopularMovies(),
+      _api.getNowPlayingMovies(),
+      _api.getAnimeMovies(),
     ]);
     if (mounted) {
       setState(() {
@@ -128,119 +130,130 @@ class _HomeScreenState extends State<HomeScreen> {
           : RefreshIndicator.adaptive(
               onRefresh: _load,
               color: cs.primary,
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverAppBar(
-                    floating: true,
-                    pinned: true,
-                    backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.95),
-                    surfaceTintColor: Colors.transparent,
-                    elevation: 0,
-                    scrolledUnderElevation: 0,
-                    toolbarHeight: 56,
-                    title: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            'assets/logo.png',
-                            width: 24,
-                            height: 24,
-                          ).animate().fadeIn(duration: 400.ms),
-                          const SizedBox(width: 8),
-                          RichText(
-                            text: TextSpan(children: [
-                              TextSpan(
-                                text: 'Stream',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 20, fontWeight: FontWeight.bold, color: cs.onSurface, letterSpacing: -0.5),
-                              ),
-                              TextSpan(
-                                text: 'Flix',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 20, fontWeight: FontWeight.bold, color: _accent, letterSpacing: -0.5),
-                              ),
-                            ]),
-                          ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    slivers: [
+                      SliverAppBar(
+                        floating: true,
+                        pinned: true,
+                        backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.95),
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 0,
+                        scrolledUnderElevation: 0,
+                        toolbarHeight: 56,
+                        title: Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Row(
+                            children: [
+                              Image.asset(
+                                'assets/logo.png',
+                                width: 24,
+                                height: 24,
+                              ).animate().fadeIn(duration: 400.ms),
+                              const SizedBox(width: 8),
+                              RichText(
+                                text: TextSpan(children: [
+                                  TextSpan(
+                                    text: 'Drishya',
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 20, fontWeight: FontWeight.bold, color: cs.onSurface, letterSpacing: -0.5),
+                                  ),
+                                  TextSpan(
+                                    text: '',
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 20, fontWeight: FontWeight.bold, color: _accent, letterSpacing: -0.5),
+                                  ),
+                                ]),
+                              ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: IconButton(
+                              onPressed: () {
+                                if (widget.onSearch != null) {
+                                  widget.onSearch!();
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const SearchScreen()),
+                                  );
+                                }
+                              },
+                              icon: Icon(CupertinoIcons.search,
+                                  color: cs.onSurface, size: 24),
+                            ).animate().fadeIn(delay: 200.ms),
+                          ),
                         ],
                       ),
-                    ),
-                    actions: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: IconButton(
-                          onPressed: () {
-                            if (widget.onSearch != null) {
-                              widget.onSearch!();
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const SearchScreen()),
-                              );
-                            }
-                          },
-                          icon: Icon(CupertinoIcons.search,
-                              color: cs.onSurface, size: 24),
-                        ).animate().fadeIn(delay: 200.ms),
+                      SliverToBoxAdapter(
+                        child: _HeroCarousel(
+                          items: _trending.take(5).toList(),
+                          heroIndex: _heroIndex,
+                          controller: _heroController,
+                          onPageChanged: (i) => setState(() => _heroIndex = i),
+                          onTap: _openDetail,
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            _buildContinueWatching(),
+                            const NativeAdWidget(size: NativeAdSize.small), // First Ad (Small)
+                            _ContentSection(
+                              title: 'Trending Now',
+                              icon: CupertinoIcons.flame_fill,
+                              iconColor: const Color(0xFFFF6240),
+                              items: _trending,
+                              delay: 0,
+                              onTap: _openDetail,
+                            ),
+                            const NativeAdWidget(size: NativeAdSize.medium), // Second Ad (Medium)
+                            _ContentSection(
+                              title: 'Now Playing',
+                              icon: CupertinoIcons.play_rectangle_fill,
+                              iconColor: _accent,
+                              items: _nowPlayingMovies,
+                              delay: 40,
+                              onTap: _openDetail,
+                            ),
+                            const NativeAdWidget(size: NativeAdSize.small), // Third Ad (Small)
+                            _ContentSection(
+                              title: 'Popular Movies',
+                              icon: CupertinoIcons.film_fill,
+                              iconColor: const Color(0xFF8B6FCA),
+                              items: _popularMovies,
+                              delay: 80,
+                              onTap: _openDetail,
+                            ),
+                            BannerAdWidget(), // Fourth Ad (Banner)
+                            _ContentSection(
+                              title: 'Anime Hits',
+                              icon: CupertinoIcons.sparkles,
+                              iconColor: const Color(0xFFFF8C42),
+                              items: _animeMovies,
+                              delay: 120,
+                              onTap: _openDetail,
+                            ),
+                            const NativeAdWidget(size: NativeAdSize.medium), // Fifth Ad (Medium)
+                            const SizedBox(height: 110),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  SliverToBoxAdapter(
-                    child: _HeroCarousel(
-                      items: _trending.take(5).toList(),
-                      heroIndex: _heroIndex,
-                      controller: _heroController,
-                      onPageChanged: (i) => setState(() => _heroIndex = i),
-                      onTap: _openDetail,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        _buildContinueWatching(),
-                        _ContentSection(
-                          title: 'Trending Now',
-                          icon: CupertinoIcons.flame_fill,
-                          iconColor: const Color(0xFFFF6240),
-                          items: _trending,
-                          delay: 0,
-                          onTap: _openDetail,
-                        ),
-                        _ContentSection(
-                          title: 'Now Playing',
-                          icon: CupertinoIcons.play_rectangle_fill,
-                          iconColor: _accent,
-                          items: _nowPlayingMovies,
-                          delay: 40,
-                          onTap: _openDetail,
-                        ),
-                        _ContentSection(
-                          title: 'Popular Movies',
-                          icon: CupertinoIcons.film_fill,
-                          iconColor: const Color(0xFF8B6FCA),
-                          items: _popularMovies,
-                          delay: 80,
-                          onTap: _openDetail,
-                        ),
-                        _ContentSection(
-                          title: 'Anime Hits',
-                          icon: CupertinoIcons.sparkles,
-                          iconColor: const Color(0xFFFF8C42),
-                          items: _animeMovies,
-                          delay: 120,
-                          onTap: _openDetail,
-                        ),
-                        const SizedBox(height: 110),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
     );
@@ -266,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: history.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (_, i) => _ContinueCard(
               item: history[i],
               onTap: () => _openDetail(history[i]),
@@ -340,7 +353,7 @@ class _HeroCarousel extends StatelessWidget {
               width: active ? 20 : 5,
               height: 4,
               decoration: BoxDecoration(
-                color: active ? _accent : cs.onSurface.withOpacity(0.18),
+                color: active ? _accent : cs.onSurface.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(2),
               ),
             );
@@ -377,9 +390,9 @@ class _HeroCard extends StatelessWidget {
                   ? item.fullBackdropUrl
                   : item.fullPosterUrl,
               fit: BoxFit.cover,
-              placeholder: (_, __) =>
+              placeholder: (_, _) =>
                   Container(color: cs.surfaceContainerHigh),
-              errorWidget: (_, __, ___) =>
+              errorWidget: (_, _, _) =>
                   Container(color: cs.surfaceContainerHigh),
             ),
             DecoratedBox(
@@ -388,7 +401,7 @@ class _HeroCard extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   stops: const [0.35, 1.0],
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.95)],
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.95)],
                 ),
               ),
             ),
@@ -416,7 +429,7 @@ class _HeroCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(item.year,
@@ -528,7 +541,7 @@ class _HeroBtn extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
@@ -536,13 +549,13 @@ class _HeroBtn extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                color: Colors.white.withOpacity(0.95), size: 16),
+                color: Colors.white.withValues(alpha: 0.95), size: 16),
             const SizedBox(width: 6),
             Flexible(
               child: Text(label,
                   style: _font(
                       size: 14,
-                      color: Colors.white.withOpacity(0.95),
+                      color: Colors.white.withValues(alpha: 0.95),
                       weight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis),
             ),
@@ -568,8 +581,8 @@ class _TypeBadge extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 0.5),
+            color: Colors.white.withValues(alpha: 0.2),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 0.5),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(label,
@@ -689,7 +702,7 @@ class _SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.14),
+              color: iconColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 16, color: iconColor),
@@ -775,7 +788,7 @@ class _ContentSection extends StatelessWidget {
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (_, i) => _PosterCard(
                 item: items[i],
                 onTap: () => onTap(items[i]),
@@ -815,11 +828,11 @@ class _PosterCard extends StatelessWidget {
               CachedNetworkImage(
                 imageUrl: item.fullPosterUrl,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => const ShimmerPlaceholder(
+                placeholder: (_, _) => const ShimmerPlaceholder(
                   width: double.infinity,
                   height: double.infinity,
                 ),
-                errorWidget: (_, __, ___) => Center(
+                errorWidget: (_, _, _) => Center(
                   child: Icon(CupertinoIcons.film_fill,
                       color: cs.onSurfaceVariant, size: 28),
                 ),
@@ -849,7 +862,7 @@ class _PosterCard extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onTap,
-                  splashColor: _accent.withOpacity(0.15),
+                  splashColor: _accent.withValues(alpha: 0.15),
                   highlightColor: Colors.black12,
                 ),
               ),
@@ -862,7 +875,7 @@ class _PosterCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(

@@ -33,9 +33,9 @@ class MediaCard extends StatelessWidget {
                     width: width,
                     height: height,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) =>
+                    placeholder: (_, _) =>
                         ShimmerPlaceholder(width: width, height: height),
-                    errorWidget: (_, __, ___) => _placeholder(),
+                    errorWidget: (_, _, _) => _placeholder(),
                   )
                 : _placeholder(),
           ),
@@ -50,7 +50,7 @@ class MediaCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     stops: const [0.5, 1.0],
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
                   ),
                 ),
               ),
@@ -116,37 +116,6 @@ class MediaCard extends StatelessWidget {
   }
 }
 
-class _RatingBadge extends StatelessWidget {
-  final double rating;
-  const _RatingBadge({required this.rating});
-
-  @override
-  Widget build(BuildContext context) {
-    if (rating == 0) return const SizedBox();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star_rounded, size: 9, color: Colors.white),
-          const SizedBox(width: 2),
-          Text(
-            rating.toStringAsFixed(1),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class CategoryRow extends StatelessWidget {
   final String title;

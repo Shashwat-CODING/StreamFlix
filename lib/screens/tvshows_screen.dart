@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,12 +6,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/media_item.dart';
-import '../services/tmdb_service.dart';
+import '../services/api_service.dart';
 import 'detail_screen.dart';
-import '../services/watch_history.dart';
 import '../widgets/shimmer_placeholder.dart';
 import 'search_screen.dart';
+import '../widgets/banner_ad_widget.dart';
 import '../widgets/m3_loading.dart';
+import '../widgets/native_ad_widget.dart';
 
 class TvShowsScreen extends StatefulWidget {
   const TvShowsScreen({super.key});
@@ -22,7 +22,7 @@ class TvShowsScreen extends StatefulWidget {
 }
 
 class _TvShowsScreenState extends State<TvShowsScreen> {
-  final _service = TmdbService();
+  final _api = ApiService.instance;
   List<MediaItem> _trending = [];
   List<MediaItem> _popular = [];
   List<MediaItem> _topRated = [];
@@ -57,10 +57,10 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.getTrendingTv(),
-      _service.getPopularTvShows(),
-      _service.getTopRatedTvShows(),
-      _service.getAiringTodayTv(),
+      _api.getTrendingTv(),
+      _api.getPopularTvShows(),
+      _api.getTopRatedTvShows(),
+      _api.getAiringTodayTv(),
     ]);
     if (mounted) {
       setState(() {
@@ -104,52 +104,61 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
           : RefreshIndicator.adaptive(
               onRefresh: _load,
               color: cs.primary,
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  _buildAppBar(cs),
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        _buildScrollingCarousel(cs),
-                        const SizedBox(height: 24),
-                        _buildSection(
-                          'Trending',
-                          CupertinoIcons.graph_circle,
-                          const Color(0xFFFF6240),
-                          _trending,
-                          0,
-                        ),
-                        _buildSection(
-                          'Airing Today',
-                          CupertinoIcons.sparkles,
-                          const Color(0xFFE50914),
-                          _airingToday,
-                          60,
-                        ),
-                        _buildSection(
-                          'All-Time Best',
-                          CupertinoIcons.rosette,
-                          const Color(0xFFFFCB45),
-                          _topRated,
-                          120,
-                        ),
-                        _buildSection(
-                          'Popular Right Now',
-                          CupertinoIcons.flame_fill,
-                          const Color(0xFF9C6FDE),
-                          _popular,
-                          180,
-                        ),
-                        const SizedBox(height: 100),
-                      ],
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
                     ),
+                    slivers: [
+                      _buildAppBar(cs),
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            _buildScrollingCarousel(cs),
+                            const SizedBox(height: 24),
+                            _buildSection(
+                              'Trending',
+                              CupertinoIcons.graph_circle,
+                              const Color(0xFFFF6240),
+                              _trending,
+                              0,
+                            ),
+                            _buildSection(
+                              'Airing Today',
+                              CupertinoIcons.sparkles,
+                              const Color(0xFFE50914),
+                              _airingToday,
+                              60,
+                            ),
+                            const NativeAdWidget(size: NativeAdSize.medium),
+                            BannerAdWidget(),
+                            _buildSection(
+                              'All-Time Best',
+                              CupertinoIcons.rosette,
+                              const Color(0xFFFFCB45),
+                              _topRated,
+                              120,
+                            ),
+                            _buildSection(
+                              'Popular Right Now',
+                              CupertinoIcons.flame_fill,
+                              const Color(0xFF9C6FDE),
+                              _popular,
+                              180,
+                            ),
+                            BannerAdWidget(),
+                            const SizedBox(height: 100),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
     );
@@ -159,7 +168,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
     return SliverAppBar(
       floating: true,
       pinned: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -168,7 +177,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
         padding: const EdgeInsets.only(left: 4),
         child: Row(
           children: [
-            Image.asset('assets/ic_launcher.png', width: 24, height: 24).animate().fadeIn(duration: 400.ms),
+            Image.asset('assets/logo.png', width: 24, height: 24).animate().fadeIn(duration: 400.ms),
             const SizedBox(width: 8),
             RichText(
               text: TextSpan(
@@ -238,7 +247,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                             ? item.fullBackdropUrl
                             : item.fullPosterUrl,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
+                        placeholder: (_, _) =>
                             Container(color: cs.surfaceContainerHigh),
                       ),
                       // Gradient overlay
@@ -249,7 +258,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.88),
+                              Colors.black.withValues(alpha: 0.88),
                             ],
                             stops: const [0.4, 1.0],
                           ),
@@ -278,9 +287,9 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.white.withOpacity(0.3), width: 0.5),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 0.5),
                               ),
                               child: Text(
                                 'TRENDING #${i + 1}',
@@ -358,7 +367,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
               decoration: BoxDecoration(
                 color: active
                     ? const Color(0xFFE50914)
-                    : Colors.white.withOpacity(0.3),
+                    : Colors.white.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -388,7 +397,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.15),
+                  color: iconColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 16, color: iconColor),
@@ -432,7 +441,7 @@ class _TvShowsScreenState extends State<TvShowsScreen> {
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (_, i) => _TvPosterCard(
               item: items[i],
               onTap: () => _openDetail(items[i]),
@@ -461,10 +470,10 @@ class _TvPosterCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: cs.surfaceContainerHigh,
-          border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.5),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -477,11 +486,11 @@ class _TvPosterCard extends StatelessWidget {
             CachedNetworkImage(
               imageUrl: item.fullPosterUrl,
               fit: BoxFit.cover,
-              placeholder: (_, __) => const ShimmerPlaceholder(
+              placeholder: (_, _) => const ShimmerPlaceholder(
                 width: double.infinity,
                 height: double.infinity,
               ),
-              errorWidget: (_, __, ___) => Center(
+              errorWidget: (_, _, _) => Center(
                 child: Icon(
                   CupertinoIcons.tv_fill,
                   color: cs.onSurfaceVariant,
@@ -501,7 +510,7 @@ class _TvPosterCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.95),
+                      Colors.black.withValues(alpha: 0.95),
                     ],
                     stops: const [0.1, 1.0]
                   ),
@@ -524,7 +533,7 @@ class _TvPosterCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
+                    color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(

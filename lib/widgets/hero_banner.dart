@@ -77,7 +77,7 @@ class _HeroBannerState extends State<HeroBanner> {
                     decoration: BoxDecoration(
                       color: i == _current
                           ? Theme.of(context).colorScheme.primary
-                          : Colors.white.withOpacity(0.5),
+                          : Colors.white.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -109,8 +109,8 @@ class _HeroPage extends StatelessWidget {
                   CachedNetworkImage(
                     imageUrl: item.fullBackdropUrl,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.black),
-                    errorWidget: (_, __, ___) => Container(color: Colors.black),
+                    placeholder: (_, _) => Container(color: Colors.black),
+                    errorWidget: (_, _, _) => Container(color: Colors.black),
                   ),
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -121,8 +121,8 @@ class _HeroPage extends StatelessWidget {
                         colors: [
                           Colors.transparent,
                           Colors.transparent,
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.8),
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.black.withValues(alpha: 0.8),
                           Colors.black,
                         ],
                       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/tmdb_service.dart';
 import '../services/library_service.dart';
 import '../models/media_item.dart';
 
@@ -19,7 +18,7 @@ class PosterTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -38,7 +37,7 @@ class PosterTile extends StatelessWidget {
                         : Center(
                             child: Icon(
                               Icons.movie_outlined,
-                              color: Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                              color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6),
                               size: 32,
                             ),
                           ),
@@ -56,7 +55,7 @@ class PosterTile extends StatelessWidget {
         const SizedBox(height: 4),
         Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
         Text(item.mediaType.toUpperCase(),
-            style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6))),
+            style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
       ]),
     );
   }
@@ -75,7 +74,7 @@ class _WatchLaterButtonState extends State<_WatchLaterButton> {
   Widget build(BuildContext context) {
     final isSaved = LibraryService.instance.isInWatchLater(widget.item);
     return Material(
-      color: Colors.black.withOpacity(0.45),
+      color: Colors.black.withValues(alpha: 0.45),
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),

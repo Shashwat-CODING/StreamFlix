@@ -19,7 +19,7 @@ class BookmarkService {
         _bookmarks = decoded.map((e) => MediaItem.fromJson(e)).toList();
       }
     } catch (e) {
-      print('Error loading bookmarks: $e');
+      // Error loading bookmarks
     }
   }
 
@@ -29,7 +29,7 @@ class BookmarkService {
       final data = jsonEncode(_bookmarks.map((e) => e.toJson()).toList());
       await prefs.setString(_key, data);
     } catch (e) {
-      print('Error saving bookmarks: $e');
+      // Error saving bookmarks
     }
   }
 

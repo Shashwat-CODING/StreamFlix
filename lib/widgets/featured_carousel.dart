@@ -98,14 +98,14 @@ class _CarouselCard extends StatelessWidget {
                   BoxShadow(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.3),
+                    ).colorScheme.primary.withValues(alpha: 0.3),
                     blurRadius: 30,
                     offset: const Offset(0, 15),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     blurRadius: 15,
                     offset: const Offset(0, 10),
                   ),
@@ -121,12 +121,12 @@ class _CarouselCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: item.fullPosterUrl,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
+                      placeholder: (_, _) => Container(
                         color: Theme.of(
                           context,
                         ).colorScheme.surfaceContainerHigh,
                       ),
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (_, _, _) => Container(
                         color: Theme.of(
                           context,
                         ).colorScheme.surfaceContainerHigh,
@@ -145,9 +145,9 @@ class _CarouselCard extends StatelessWidget {
                     stops: const [0.0, 0.4, 0.7, 1.0],
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.1),
-                      Colors.black.withOpacity(0.6),
-                      Colors.black.withOpacity(0.95),
+                      Colors.black.withValues(alpha: 0.1),
+                      Colors.black.withValues(alpha: 0.6),
+                      Colors.black.withValues(alpha: 0.95),
                     ],
                   ),
                 ),
@@ -157,7 +157,7 @@ class _CarouselCard extends StatelessWidget {
               if (!isActive)
                 BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                  child: Container(color: Colors.black.withOpacity(0.3)),
+                  child: Container(color: Colors.black.withValues(alpha: 0.3)),
                 ),
 
               // Content Content

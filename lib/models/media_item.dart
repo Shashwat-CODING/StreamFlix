@@ -276,6 +276,89 @@ class MediaDetail extends MediaItem {
           [],
     );
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    final map = super.toJson();
+    map.addAll({
+      'genres': genres,
+      'runtime': runtime,
+      'tagline': tagline,
+      'status': status,
+      'budget': budget,
+      'revenue': revenue,
+      'production_companies': productionCompanies,
+      'production_countries': productionCountries,
+      'homepage': homepage,
+      'number_of_seasons': numberOfSeasons,
+      'number_of_episodes': numberOfEpisodes,
+      'cast': cast.map((c) => c.toJson()).toList(),
+      'seasons': seasons.map((s) => s.toJson()).toList(),
+    });
+    return map;
+  }
+
+  factory MediaDetail.fromJson(Map<String, dynamic> json) {
+    return MediaDetail(
+      id: json['id'] ?? 0,
+      title: json['title'] ?? 'Unknown',
+      overview: json['overview'],
+      posterPath: json['poster_path'],
+      backdropPath: json['backdrop_path'],
+      voteAverage: (json['vote_average'] ?? 0.0).toDouble(),
+      releaseDate: json['release_date'],
+      genreIds: List<int>.from(json['genre_ids'] ?? []),
+      mediaType: json['media_type'] ?? 'movie',
+      extraInfo: json['extra_info'],
+      genres: List<String>.from(json['genres'] ?? []),
+      runtime: json['runtime'],
+      tagline: json['tagline'],
+      status: json['status'],
+      budget: json['budget'],
+      revenue: json['revenue'],
+      productionCompanies: List<String>.from(json['production_companies'] ?? []),
+      productionCountries: List<String>.from(json['production_countries'] ?? []),
+      homepage: json['homepage'],
+      numberOfSeasons: json['number_of_seasons'],
+      numberOfEpisodes: json['number_of_episodes'],
+      cast: (json['cast'] as List?)?.map((c) => Cast.fromJson(c)).toList() ?? [],
+      seasons: (json['seasons'] as List?)?.map((s) => TvSeason.fromJson(s)).toList() ?? [],
+    );
+  }
+}
+
+extension on Cast {
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'character': character,
+    'profile_path': profilePath,
+  };
+}
+
+extension on TvSeason {
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'overview': overview,
+    'poster_path': posterPath,
+    'season_number': seasonNumber,
+    'episode_count': episodeCount,
+    'episodes': episodes?.map((e) => e.toJson()).toList(),
+  };
+}
+
+extension on TvEpisode {
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'overview': overview,
+    'still_path': stillPath,
+    'episode_number': episodeNumber,
+    'season_number': seasonNumber,
+    'vote_average': voteAverage,
+    'air_date': airDate?.toIso8601String(),
+  };
 }
 
 class TvSeason {

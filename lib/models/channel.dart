@@ -49,6 +49,7 @@ class VideoStream {
   final String? title;
   final String? referrer;
   final String? userAgent;
+  final Map<String, String>? headers;
 
   VideoStream({
     required this.url,
@@ -56,6 +57,7 @@ class VideoStream {
     this.title,
     this.referrer,
     this.userAgent,
+    this.headers,
   });
 
   factory VideoStream.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class VideoStream {
       title: json['title'],
       referrer: json['referrer'],
       userAgent: json['user_agent'],
+      headers: (json['headers'] as Map?)?.cast<String, String>(),
     );
   }
 }

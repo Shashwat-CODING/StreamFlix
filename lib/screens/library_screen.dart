@@ -6,8 +6,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/media_item.dart';
 import '../services/watch_history.dart';
 import '../services/bookmark_service.dart';
-import '../services/tmdb_service.dart';
+import '../services/api_service.dart';
+import '../services/streaming_service.dart';
+import '../models/download_item.dart';
+import 'dart:async';
+
 import 'detail_screen.dart';
+import 'player_screen.dart';
+import '../widgets/native_ad_widget.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class LibraryScreen extends StatefulWidget {
   final VoidCallback onSearch;
@@ -18,7 +25,12 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  final TmdbService _tmdb = TmdbService();
+  final _api = ApiService.instance;
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,85 +39,123 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       body: ValueListenableBuilder<int>(
-        valueListenable: BookmarkService.listChanged,
-        builder: (context, _, __) => ValueListenableBuilder<int>(
-          valueListenable: WatchHistory.listChanged,
-          builder: (context, _, __) {
-            // Re-categorize Bookmarks dynamically
-            final bookmarkedMovies = BookmarkService.bookmarks
-                .where((m) => m.mediaType == 'movie')
-                .toList();
-            final bookmarkedTv = BookmarkService.bookmarks
-                .where((m) => m.mediaType == 'tv')
-                .toList();
+        valueListenable: StreamingService.listChanged,
+        builder: (context, _, _) => ValueListenableBuilder<int>(
+          valueListenable: BookmarkService.listChanged,
+          builder: (context, _, _) => ValueListenableBuilder<int>(
+            valueListenable: WatchHistory.listChanged,
+            builder: (context, _, _) {
+              // Re-categorize Bookmarks dynamically
+              final bookmarkedMovies = BookmarkService.bookmarks
+                  .where((m) => m.mediaType == 'movie')
+                  .toList();
+              final bookmarkedTv = BookmarkService.bookmarks
+                  .where((m) => m.mediaType == 'tv')
+                  .toList();
             final historyMovies = WatchHistory.history
                 .where((m) => m.mediaType == 'movie')
                 .toList();
             final historyTv = WatchHistory.history
                 .where((m) => m.mediaType == 'tv')
                 .toList();
+            final downloads = StreamingService.instance.downloads;
             final isEmpty =
+                downloads.isEmpty &&
                 bookmarkedMovies.isEmpty &&
                 bookmarkedTv.isEmpty &&
                 historyMovies.isEmpty &&
                 historyTv.isEmpty;
 
-            return CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                _buildAppBar(cs),
-                if (isEmpty)
-                  _buildEmptyState(cs)
-                else ...[
-                  // My List Categories
-                  if (bookmarkedMovies.isNotEmpty)
-                    _buildSectionHeader(
-                      'My List - Movies',
-                      bookmarkedMovies.length,
-                      cs,
-                    ),
-                  if (bookmarkedMovies.isNotEmpty)
-                    _buildHorizontalList(bookmarkedMovies, cs),
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    _buildAppBar(cs),
 
-                  if (bookmarkedTv.isNotEmpty)
-                    _buildSectionHeader(
-                      'My List - TV Series',
-                      bookmarkedTv.length,
-                      cs,
-                    ),
-                  if (bookmarkedTv.isNotEmpty)
-                    _buildHorizontalList(bookmarkedTv, cs),
+                    if (isEmpty)
+                      _buildEmptyState(cs)
+                    else ...[
+                      if (downloads.isNotEmpty)
+                        _buildSectionHeader(
+                          'Downloads',
+                          downloads.length,
+                          cs,
+                        ),
+                      if (downloads.isNotEmpty)
+                        _buildDownloadsList(downloads, cs),
+                      
+                      if (downloads.isNotEmpty)
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                  // Spacing if history exists
-                  if (historyMovies.isNotEmpty || historyTv.isNotEmpty)
-                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      // My List Categories
+                      if (bookmarkedMovies.isNotEmpty)
+                        _buildSectionHeader(
+                          'My List - Movies',
+                          bookmarkedMovies.length,
+                          cs,
+                        ),
+                      if (bookmarkedMovies.isNotEmpty)
+                        _buildHorizontalList(bookmarkedMovies, cs),
 
-                  // History Categories
-                  if (historyMovies.isNotEmpty)
-                    _buildSectionHeader(
-                      'Continue Watching - Movies',
-                      historyMovies.length,
-                      cs,
-                    ),
-                  if (historyMovies.isNotEmpty)
-                    _buildHorizontalList(historyMovies, cs),
+                      if (bookmarkedTv.isNotEmpty)
+                        _buildSectionHeader(
+                          'My List - TV Series',
+                          bookmarkedTv.length,
+                          cs,
+                        ),
+                      if (bookmarkedTv.isNotEmpty)
+                        _buildHorizontalList(bookmarkedTv, cs),
 
-                  if (historyTv.isNotEmpty)
-                    _buildSectionHeader(
-                      'Continue Watching - TV Series',
-                      historyTv.length,
-                      cs,
-                    ),
-                  if (historyTv.isNotEmpty) _buildHorizontalList(historyTv, cs),
+                      // Spacing if history exists
+                      if (historyMovies.isNotEmpty || historyTv.isNotEmpty)
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
-                ],
-              ],
+                      // History Categories
+                      if (historyMovies.isNotEmpty)
+                        _buildSectionHeader(
+                          'Continue Watching - Movies',
+                          historyMovies.length,
+                          cs,
+                        ),
+                      if (historyMovies.isNotEmpty)
+                        _buildHorizontalList(historyMovies, cs),
+
+                      if (historyTv.isNotEmpty)
+                        _buildSectionHeader(
+                          'Continue Watching - TV Series',
+                          historyTv.length,
+                          cs,
+                        ),
+                      if (historyTv.isNotEmpty) _buildHorizontalList(historyTv, cs),
+
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+                          child: Column(
+                            children: [
+                              const Center(child: NativeAdWidget()),
+                              const SizedBox(height: 32),
+                              const NativeAdWidget(size: NativeAdSize.small),
+                              const SizedBox(height: 32),
+                              BannerAdWidget(),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                    ],
+                  ],
+                ),
+              ),
             );
           },
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildAppBar(ColorScheme cs) {
@@ -118,7 +168,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       elevation: 0,
       title: Row(
         children: [
-          Image.asset('assets/ic_launcher.png', width: 28, height: 28),
+          Image.asset('assets/logo.png', width: 24, height: 24).animate().fadeIn(duration: 400.ms),
           const SizedBox(width: 10),
           RichText(
             text: TextSpan(
@@ -151,6 +201,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+
+
   Widget _buildSectionHeader(String title, int count, ColorScheme cs) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -173,7 +225,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: cs.onSurfaceVariant.withOpacity(0.5),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -204,8 +256,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   item: item,
                   onTap: () async {
                     final detail = item.mediaType == 'movie'
-                        ? await _tmdb.getMovieDetail(item.id)
-                        : await _tmdb.getTvDetail(item.id);
+                        ? await _api.getMovieDetail(item.id)
+                        : await _api.getTvDetail(item.id);
                     if (detail != null && context.mounted) {
                       Navigator.push(
                         context,
@@ -229,15 +281,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
               itemBuilder: (context, index) {
                 final item = items[index];
                 return _LibraryCard(
                   item: item,
                   onTap: () async {
                     final detail = item.mediaType == 'movie'
-                        ? await _tmdb.getMovieDetail(item.id)
-                        : await _tmdb.getTvDetail(item.id);
+                        ? await _api.getMovieDetail(item.id)
+                        : await _api.getTvDetail(item.id);
                     if (detail != null && context.mounted) {
                       Navigator.push(
                         context,
@@ -266,7 +318,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             Icon(
               CupertinoIcons.square_stack_3d_down_right,
               size: 64,
-              color: cs.onSurfaceVariant.withOpacity(0.3),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
@@ -291,6 +343,167 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
   }
+
+  Widget _buildDownloadsList(List<DownloadItem> items, ColorScheme cs) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final item = items[index];
+          final mi = item.mediaItem;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: mi.fullPosterUrl,
+                      width: 60,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, _, _) => Container(
+                        width: 60, height: 90, color: cs.surfaceContainerHighest,
+                        child: Icon(CupertinoIcons.film, color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mi.title,
+                          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              item.status.name.toUpperCase(),
+                              style: GoogleFonts.dmSans(
+                                color: item.status == DownloadStatus.failed ? Colors.red : 
+                                      (item.status == DownloadStatus.completed ? Colors.green : cs.primary),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (item.sourceLabel != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: cs.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+                                ),
+                                child: Text(
+                                  item.sourceLabel!,
+                                  style: GoogleFonts.dmSans(
+                                    color: cs.primary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (item.status == DownloadStatus.downloading || item.status == DownloadStatus.paused) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: LinearProgressIndicator(
+                                  value: item.progress,
+                                  backgroundColor: cs.surfaceContainerHighest,
+                                  color: cs.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${(item.progress * 100).toInt()}%',
+                                style: GoogleFonts.dmSans(
+                                  color: cs.onSurfaceVariant,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (item.status == DownloadStatus.downloading)
+                        IconButton(
+                          icon: const Icon(CupertinoIcons.pause_fill),
+                          onPressed: () {
+                            StreamingService.instance.pauseDownload(item.id);
+                            setState(() {});
+                          },
+                        ),
+                      if (item.status == DownloadStatus.paused || item.status == DownloadStatus.failed)
+                        IconButton(
+                          icon: Icon(item.status == DownloadStatus.failed ? CupertinoIcons.refresh_circled_solid : CupertinoIcons.play_fill),
+                          color: item.status == DownloadStatus.failed ? Colors.red : null,
+                          onPressed: () {
+                            StreamingService.instance.resumeDownload(item.id);
+                            setState(() {});
+                          },
+                        ),
+                      if (item.status == DownloadStatus.completed)
+                        IconButton(
+                          icon: const Icon(CupertinoIcons.play_circle_fill, size: 32),
+                          color: cs.primary,
+                          onPressed: () {
+                            // Offline Playback using existing PlayerScreen
+                            // PlayerScreen needs to be able to accept a local URL, but actually `media_kit` plays `file://` urls seamlessly!
+                            // Since PlayerScreen relies on TMDB ID to fetch streams from Drishya backend, 
+                            // we need a minor bypass in PlayerScreen if user wants to play local file directly.
+                            _playDownloadedFile(item);
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(CupertinoIcons.trash, color: Colors.redAccent),
+                        onPressed: () {
+                          StreamingService.instance.cancelDownload(item.id);
+                          setState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        childCount: items.length,
+      ),
+    );
+  }
+
+  void _playDownloadedFile(DownloadItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PlayerScreen(
+          item: item.mediaItem,
+          offlinePath: 'file:///${item.savedPath}',
+        ),
+      ),
+    );
+  }
 }
 
 class _LibraryCard extends StatelessWidget {
@@ -312,7 +525,7 @@ class _LibraryCard extends StatelessWidget {
                   color: cs.surfaceContainerHigh,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -327,7 +540,7 @@ class _LibraryCard extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: item.fullPosterUrl,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) =>
+                            placeholder: (_, _) =>
                                 Container(color: cs.surfaceContainerHigh),
                           )
                         : Container(
@@ -347,8 +560,8 @@ class _LibraryCard extends StatelessWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.1),
-                              Colors.black.withOpacity(0.8),
+                              Colors.black.withValues(alpha: 0.1),
+                              Colors.black.withValues(alpha: 0.8),
                             ],
                             stops: const [0.6, 0.8, 1.0],
                           ),
@@ -406,7 +619,7 @@ class _LibraryCard extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: onTap,
-                          splashColor: cs.primary.withOpacity(0.2),
+                          splashColor: cs.primary.withValues(alpha: 0.2),
                         ),
                       ),
                     ),
@@ -422,3 +635,6 @@ class _LibraryCard extends StatelessWidget {
     );
   }
 }
+
+
+

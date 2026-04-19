@@ -534,7 +534,6 @@ class LanguageUtils {
   };
 
   static String getLabel(String? code, String? title, int index) {
-    print('DEBUG: getLabel(code: $code, title: $title, index: $index)');
 
     // Normalize code and title
     code = code?.trim().toLowerCase();

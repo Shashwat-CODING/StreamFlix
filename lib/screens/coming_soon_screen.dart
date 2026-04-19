@@ -56,7 +56,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: cs.primary.withOpacity(
+                        color: cs.primary.withValues(alpha: 
                           0.1 + _pulseController.value * 0.2,
                         ),
                         blurRadius: 40 + _pulseController.value * 30,
@@ -73,7 +73,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                   child: Container(
                     margin: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(0.05),
+                      color: cs.primary.withValues(alpha: 0.05),
                       shape: BoxShape.circle,
                     ),
                     child: child,

@@ -122,12 +122,12 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: isDark ? const Color(0xFF1C1C1E) : cs.surface,
         elevation: 0,
-        shadowColor: Colors.black.withOpacity(0.05),
+        shadowColor: Colors.black.withValues(alpha: 0.05),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: isDark
-              ? BorderSide(color: Colors.white.withOpacity(0.08), width: 0.5)
-              : BorderSide(color: Colors.black.withOpacity(0.05), width: 0.5),
+              ? BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 0.5)
+              : BorderSide(color: Colors.black.withValues(alpha: 0.05), width: 0.5),
         ),
         clipBehavior: Clip.antiAlias,
       ),
@@ -150,7 +150,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: cs.primary,
-          side: BorderSide(color: cs.primary.withOpacity(0.4), width: 1.5),
+          side: BorderSide(color: cs.primary.withValues(alpha: 0.4), width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -187,7 +187,7 @@ class AppTheme {
         hintStyle: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: cs.onSurfaceVariant.withOpacity(0.6),
+          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
           letterSpacing: 0,
         ),
       ),
@@ -209,7 +209,7 @@ class AppTheme {
         elevation: 8,
       ),
       dividerTheme: DividerThemeData(
-        color: cs.outlineVariant.withOpacity(0.4),
+        color: cs.outlineVariant.withValues(alpha: 0.4),
         thickness: 0.5,
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(

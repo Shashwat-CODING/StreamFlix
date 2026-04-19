@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
 
@@ -20,7 +19,7 @@ class WatchHistory {
         _history = decoded.map((e) => MediaItem.fromJson(e)).toList();
       }
     } catch (e) {
-      print('Error loading watch history: $e');
+      // Error loading watch history
     }
   }
 
@@ -30,7 +29,7 @@ class WatchHistory {
       final data = jsonEncode(_history.map((e) => e.toJson()).toList());
       await prefs.setString(_key, data);
     } catch (e) {
-      print('Error saving watch history: $e');
+      // Error saving watch history
     }
   }
 

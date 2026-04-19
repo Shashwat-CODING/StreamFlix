@@ -6,20 +6,21 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/m3_loading.dart';
 import '../models/media_item.dart';
-import '../services/tmdb_service.dart';
+import '../services/api_service.dart';
 import '../widgets/shimmer_placeholder.dart';
 import 'detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback? onBack;
-  const SearchScreen({super.key, this.onBack});
+  final String? initialQuery;
+  const SearchScreen({super.key, this.onBack, this.initialQuery});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _service = TmdbService();
+  final _api = ApiService.instance;
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   List<MediaItem> _results = [];
@@ -31,6 +32,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _controller.text = widget.initialQuery!;
+      _search(widget.initialQuery!);
+    }
     // Auto-focus after frame
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _focusNode.requestFocus(),
@@ -62,13 +67,14 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _search(String q) async {
     if (!mounted) return;
     try {
-      final results = await _service.search(q);
-      if (mounted)
+      final results = await _api.search(q);
+      if (mounted) {
         setState(() {
           _results = results;
           _loading = false;
           _hasSearched = true;
         });
+      }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
@@ -86,13 +92,19 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader(cs)),
-            SliverToBoxAdapter(child: _buildFilters(cs)),
-            _buildResultsSliver(cs),
-          ],
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(cs)),
+                SliverToBoxAdapter(child: _buildFilters(cs)),
+                _buildResultsSliver(cs),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -104,15 +116,15 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Container(
             height: 52,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh.withOpacity(0.9),
+              color: cs.surfaceContainerHigh.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
-                color: cs.primary.withOpacity(0.12),
+                color: cs.primary.withValues(alpha: 0.12),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: cs.primary.withOpacity(0.06),
+                  color: cs.primary.withValues(alpha: 0.06),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -152,7 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       hintStyle: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
-                        color: cs.onSurfaceVariant.withOpacity(0.5),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -170,7 +182,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     icon: Icon(
                       CupertinoIcons.xmark_circle_fill,
                       size: 20,
-                      color: cs.onSurfaceVariant.withOpacity(0.6),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                   )
                 else
@@ -178,7 +190,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     padding: const EdgeInsets.only(right: 16),
                     child: Icon(
                       CupertinoIcons.search,
-                      color: cs.primary.withOpacity(0.7),
+                      color: cs.primary.withValues(alpha: 0.7),
                       size: 20,
                     ),
                   ),
@@ -198,9 +210,9 @@ class _SearchScreenState extends State<SearchScreen> {
         height: 54,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh.withOpacity(0.4),
+          color: cs.surfaceContainerHigh.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.outlineVariant.withOpacity(0.15)),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -228,7 +240,7 @@ class _SearchScreenState extends State<SearchScreen> {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: cs.primary.withOpacity(0.3),
+                    color: cs.primary.withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -243,7 +255,7 @@ class _SearchScreenState extends State<SearchScreen> {
             fontWeight: selected ? FontWeight.bold : FontWeight.w500,
             color: selected
                 ? cs.onPrimary
-                : cs.onSurfaceVariant.withOpacity(0.6),
+                : cs.onSurfaceVariant.withValues(alpha: 0.6),
             letterSpacing: 0.1,
           ),
         ),
@@ -311,12 +323,12 @@ class _SearchScreenState extends State<SearchScreen> {
               borderRadius: BorderRadius.circular(16),
               color: cs.surfaceContainerHigh,
               border: Border.all(
-                color: Colors.white.withOpacity(0.06),
+                color: Colors.white.withValues(alpha: 0.06),
                 width: 0.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -330,15 +342,15 @@ class _SearchScreenState extends State<SearchScreen> {
                     ? CachedNetworkImage(
                         imageUrl: item.fullPosterUrl,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => const ShimmerPlaceholder(
+                        placeholder: (_, _) => const ShimmerPlaceholder(
                           width: double.infinity,
                           height: double.infinity,
                         ),
-                        errorWidget: (_, __, ___) => Container(
+                        errorWidget: (_, _, _) => Container(
                           color: cs.surfaceContainerHighest,
                           child: Icon(
                             CupertinoIcons.film,
-                            color: cs.primary.withOpacity(0.3),
+                            color: cs.primary.withValues(alpha: 0.3),
                             size: 32,
                           ),
                         ),
@@ -353,8 +365,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.1),
-                          Colors.black.withOpacity(0.95),
+                          Colors.black.withValues(alpha: 0.1),
+                          Colors.black.withValues(alpha: 0.95),
                         ],
                         stops: const [0.5, 0.7, 1.0],
                       ),
@@ -375,7 +387,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           (item.mediaType == 'tv'
                                   ? const Color(0xFF5AC8FA)
                                   : cs.primary)
-                              .withOpacity(0.85),
+                              .withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -425,7 +437,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
+                              color: Colors.black.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -472,18 +484,18 @@ class _SearchScreenState extends State<SearchScreen> {
                   Container(
                     padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(0.08),
+                      color: cs.primary.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       CupertinoIcons.search,
                       size: 56,
-                      color: cs.primary.withOpacity(0.5),
+                      color: cs.primary.withValues(alpha: 0.5),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Explore StreamFlix',
+                    'Explore Drishya',
                     style: GoogleFonts.dmSerifDisplay(
                       fontSize: 22,
                       color: cs.onSurface,
@@ -498,7 +510,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
                         fontSize: 15,
-                        color: cs.onSurfaceVariant.withOpacity(0.7),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                         height: 1.5,
                       ),
                     ),
@@ -522,13 +534,13 @@ class _SearchScreenState extends State<SearchScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: cs.errorContainer.withOpacity(0.1),
+              color: cs.errorContainer.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               CupertinoIcons.search_circle,
               size: 60,
-              color: cs.onSurfaceVariant.withOpacity(0.3),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 24),
@@ -545,7 +557,7 @@ class _SearchScreenState extends State<SearchScreen> {
             'Try different keywords or filters.',
             style: GoogleFonts.dmSans(
               fontSize: 14,
-              color: cs.onSurfaceVariant.withOpacity(0.6),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
             ),
           ),
         ],

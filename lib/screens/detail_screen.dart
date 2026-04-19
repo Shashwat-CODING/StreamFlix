@@ -1,21 +1,28 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/media_item.dart';
-import '../services/tmdb_service.dart';
+import '../services/api_service.dart';
 import '../services/bookmark_service.dart';
-import '../services/watch_history.dart';
 import '../widgets/m3_loading.dart';
+import '../services/ad_service.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../widgets/native_ad_widget.dart';
+import '../widgets/banner_ad_widget.dart';
+import '../models/api_models.dart';
+import '../services/streaming_service.dart';
 import 'player_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
-const _kRadius = 14.0;
-const _kPosterW = 120.0;
-const _kPosterH = 178.0;
+const _kRadius = 16.0;
+const _kPosterW = 125.0;
+const _kPosterH = 185.0;
 const _accent = Color(0xFFE50914);
 
 TextStyle _font(BuildContext context, {
@@ -47,7 +54,7 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  final _service = TmdbService();
+  final _api = ApiService.instance;
   MediaDetail? _detail;
   List<MediaItem> _similar = [];
   bool _loading = true;
@@ -69,8 +76,8 @@ class _DetailScreenState extends State<DetailScreen> {
     MediaDetail? detail;
     try {
       detail = widget.item.mediaType == 'tv'
-          ? await _service.getTvDetail(widget.item.id)
-          : await _service.getMovieDetail(widget.item.id);
+          ? await _api.getTvDetail(widget.item.id)
+          : await _api.getMovieDetail(widget.item.id);
     } catch (e) {
       debugPrint('Error loading details: $e');
     }
@@ -83,8 +90,8 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _loadSimilar() async {
     try {
       final similar = widget.item.mediaType == 'tv'
-          ? await _service.getSimilarTv(widget.item.id)
-          : await _service.getSimilarMovies(widget.item.id);
+          ? await _api.getSimilarTv(widget.item.id)
+          : await _api.getSimilarMovies(widget.item.id);
       if (mounted) setState(() { _similar = similar; _loading = false; });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
@@ -95,12 +102,12 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0A0A0A) : cs.surface;
+    final bgColor = isDark ? const Color(0xFF0F0F0F) : cs.surface;
 
     if (_loading) {
       return Scaffold(
         backgroundColor: bgColor,
-        body: const Center(child: M3Loading(message: 'Loading…')),
+        body: const Center(child: M3Loading(message: 'Gathering metadata...')),
       );
     }
 
@@ -135,134 +142,143 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+
   Widget _buildBody(MediaDetail item, ColorScheme cs, bool isDark) {
-    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
+    final w = MediaQuery.of(context).size.width;
+    final paddingH = w > 1000 ? (w - 1000) / 2 : 24.0;
+    final subColor = isDark ? Colors.white70 : cs.onSurface.withValues(alpha: 0.7);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(paddingH, 0, paddingH, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Meta chips row ──────────────────────────────────────────────
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _MetaChip(icon: CupertinoIcons.star_fill, label: item.ratingStr, accent: true),
-                const SizedBox(width: 8),
-                _MetaChip(icon: CupertinoIcons.calendar, label: item.year),
-                const SizedBox(width: 8),
-                if ((item.runtime ?? 0) > 0)
-                  _MetaChip(icon: CupertinoIcons.clock, label: '${item.runtime}m'),
-                if ((item.runtime ?? 0) > 0) const SizedBox(width: 8),
-                if (item.genres.isNotEmpty)
-                  _MetaChip(icon: CupertinoIcons.tag, label: item.genres.first),
-              ],
+          // ── Meta info row ──────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _MetaBadge(
+                    icon: CupertinoIcons.star_fill,
+                    label: item.ratingStr,
+                    color: const Color(0xFFFFCB45),
+                  ),
+                  _MetaDivider(),
+                  _MetaBadge(label: item.year),
+                  _MetaDivider(),
+                  if ((item.runtime ?? 0) > 0) ...[
+                    _MetaBadge(label: '${item.runtime}m'),
+                    _MetaDivider(),
+                  ],
+                  if (item.genres.isNotEmpty)
+                    _MetaBadge(label: item.genres.first),
+                  if (item.productionCountries.isNotEmpty) ...[
+                    _MetaDivider(),
+                    _MetaBadge(label: item.productionCountries.first),
+                  ],
+                ],
+              ),
             ),
-          ).animate().fadeIn(delay: 200.ms),
+          ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
-          // ── Quick actions ───────────────────────────────────────────────
+          // ── Action Buttons ──────────────────────────────────────────────
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ActionButton(
-                icon: _isFavorite ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                label: _isFavorite ? 'Saved' : 'Save',
-                onTap: _toggleBookmark,
-                active: _isFavorite,
-              ),
-              const SizedBox(width: 14),
-              _ActionButton(
-                icon: CupertinoIcons.share,
-                label: 'Share',
-                onTap: () {},
-              ),
-              const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          if (item.mediaType == 'tv') {
-                            _showEpisodeSelector(item);
-                          } else {
+                flex: 4,
+                child: _FullButton(
+                  onPressed: () {
+                    if (item.mediaType == 'tv') {
+                      _showEpisodeSelector(item);
+                    } else {
+                      AdService.showRewardedAd(
+                        context: context,
+                        onComplete: () {
+                          if (context.mounted) {
                             Navigator.push(context, MaterialPageRoute(
                               builder: (_) => PlayerScreen(item: item),
                             ));
                           }
                         },
-                        icon: Icon(
-                          item.mediaType == 'tv' ? CupertinoIcons.list_bullet : CupertinoIcons.play_fill,
-                          size: 18,
-                        ),
-                        label: Text(
-                          item.mediaType == 'tv' ? 'Episodes' : 'Watch Now',
-                          maxLines: 1,
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _accent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(_kRadius),
-                          ),
-                          textStyle: _font(context, size: 14, weight: FontWeight.w700, spacing: 0.2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(' ', style: _font(context, size: 11)),
-                  ],
+                      );
+                    }
+                  },
+                  icon: item.mediaType == 'tv' ? CupertinoIcons.square_list : CupertinoIcons.play_fill,
+                  label: item.mediaType == 'tv' ? 'View Episodes' : 'Watch Movie',
+                  primary: true,
                 ),
               ),
+              const SizedBox(width: 12),
+
+              _SquareIconButton(
+                icon: _isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                onPressed: _toggleBookmark,
+                active: _isFavorite,
+              ),
+              const SizedBox(width: 12),
+              _SquareIconButton(
+                icon: CupertinoIcons.share,
+                onPressed: () {
+                  final url = '${ApiService.websiteUrl}/details/${item.mediaType}/${item.id}';
+                  Share.share(
+                    'Check out "${item.title}" on Drishya!\n\nWatch here: $url',
+                    subject: 'Share ${item.title}',
+                  );
+                },
+              ),
             ],
-          ).animate().fadeIn(delay: 300.ms),
+          ).animate().fadeIn(delay: 300.ms).scale(begin: const Offset(0.95, 0.95)),
 
           const SizedBox(height: 32),
 
           // ── Synopsis ────────────────────────────────────────────────────
-          _SectionTitle('Synopsis'),
-          const SizedBox(height: 10),
+          _SectionTitle('About the ${item.mediaType == 'tv' ? 'Series' : 'Movie'}'),
+          const SizedBox(height: 12),
           Text(
-            (item.overview?.isNotEmpty ?? false) ? item.overview! : 'No description available.',
-            style: _font(context, size: 14.5, color: subColor, height: 1.7),
-          ).animate().fadeIn(delay: 250.ms),
+            (item.overview?.isNotEmpty ?? false) ? item.overview! : 'No description available for this titles.',
+            style: _font(context, size: 15, color: subColor, height: 1.6),
+          ).animate().fadeIn(delay: 400.ms),
 
           // ── Cast ────────────────────────────────────────────────────────
           if (item.cast.isNotEmpty) ...[
-            const SizedBox(height: 36),
-            _SectionTitle('Cast'),
-            const SizedBox(height: 14),
+            const SizedBox(height: 40),
+            _SectionTitle('Top Cast'),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 108,
+              height: 115,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: item.cast.length.clamp(0, 15),
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                separatorBuilder: (_, _) => const SizedBox(width: 20),
                 itemBuilder: (_, i) => _CastCard(cast: item.cast[i]),
               ),
-            ),
+            ).animate().fadeIn(delay: 500.ms),
           ],
+
+          const SizedBox(height: 32),
+          const NativeAdWidget(size: NativeAdSize.small), // Second Ad (Small)
+
+          const SizedBox(height: 40),
+          const NativeAdWidget(size: NativeAdSize.medium), // First Ad (Medium) - kept from before
 
           // ── More Like This ──────────────────────────────────────────────
           if (_similar.isNotEmpty) ...[
-            const SizedBox(height: 36),
-            _SectionTitle('More Like This'),
-            const SizedBox(height: 14),
+            const SizedBox(height: 40),
+            _SectionTitle('Recommendations'),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 190,
+              height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: _similar.length.clamp(0, 10),
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (_, i) => _SimilarCard(
                   item: _similar[i],
                   onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -270,9 +286,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   )),
                 ),
               ),
-            ),
+            ).animate().fadeIn(delay: 600.ms),
           ],
-
+          
+          const SizedBox(height: 32),
+          BannerAdWidget(), // Third Ad (Banner)
           const SizedBox(height: 100),
         ],
       ),
@@ -284,8 +302,141 @@ class _DetailScreenState extends State<DetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.8), // Darken background for focus
       useSafeArea: true,
-      builder: (_) => _EpisodeSelectorSheet(tvDetail: item),
+      elevation: 0,
+      enableDrag: true,
+      builder: (_) => _EpisodeSelectorSheet(
+        tvDetail: item,
+      ),
+    );
+  }
+}
+
+
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+class _MetaBadge extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+  final Color? color;
+  const _MetaBadge({this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final subColor = Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 13, color: color ?? subColor),
+          const SizedBox(width: 5),
+        ],
+        Text(
+          label,
+          style: _font(context, size: 13, weight: FontWeight.w600, color: subColor),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetaDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4, height: 4,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _FullButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool primary;
+
+  const _FullButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: primary ? _accent : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(_kRadius),
+          boxShadow: primary ? [
+            BoxShadow(
+              color: _accent.withValues(alpha: 0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
+          ] : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: _font(context, size: 15, weight: FontWeight.w800, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SquareIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool active;
+  const _SquareIconButton({required this.icon, required this.onPressed, this.active = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 56, height: 56,
+        decoration: BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : cs.onSurface.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(_kRadius),
+            border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.06) : cs.onSurface.withValues(alpha: 0.05), width: 0.5),
+          ),
+        child: Icon(icon, color: active ? _accent : Colors.white, size: 22),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: GoogleFonts.dmSerifDisplay(
+        fontSize: 22,
+        color: Colors.white,
+        letterSpacing: 0.2,
+      ),
     );
   }
 }
@@ -307,13 +458,15 @@ class _HeroAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height;
-    final cs = Theme.of(context).colorScheme;
+    final size = MediaQuery.of(context).size;
+    final h = size.height;
+    final w = size.width;
+    final paddingH = w > 1000 ? (w - 1000) / 2 : 24.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0A0A0A) : cs.surface;
+    final bgColor = isDark ? const Color(0xFF0F0F0F) : Theme.of(context).colorScheme.surface;
 
     return SliverAppBar(
-      expandedHeight: h * 0.52,
+      expandedHeight: w > 1000 ? h * 0.68 : h * 0.58,
       pinned: true,
       stretch: true,
       backgroundColor: bgColor,
@@ -321,112 +474,109 @@ class _HeroAppBar extends StatelessWidget {
       elevation: 0,
       automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
-        stretchModes: const [StretchMode.zoomBackground],
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Backdrop
+            // Backdrop with high-quality blur on top
             CachedNetworkImage(
               imageUrl: item.fullBackdropUrl.isNotEmpty ? item.fullBackdropUrl : item.fullPosterUrl,
               fit: BoxFit.cover,
             ),
-
-            // Bottom gradient — deep fade into bg
-            DecoratedBox(
+            
+            // Premium Gradient System
+            Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.35, 0.72, 1.0],
+                  stops: const [0.0, 0.4, 0.75, 1.0],
                   colors: [
-                    const Color(0x55000000),
+                    Colors.black.withValues(alpha: 0.6),
                     Colors.transparent,
-                    bgColor.withOpacity(0.72),
+                    bgColor.withValues(alpha: 0.8),
                     bgColor,
                   ],
                 ),
               ),
             ),
 
-            // Top gradient for icon legibility
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0.0, 0.25],
-                  colors: [Color(0x88000000), Colors.transparent],
-                ),
-              ),
-            ),
-
-            // Poster + title block
+            // Info Bar
             Positioned(
-              left: 20, right: 20, bottom: 20,
+              left: paddingH, right: paddingH, bottom: 24,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Hero(
-                    tag: 'poster-${item.id}',
-                    child: ClipRRect(
+                  // Premium Poster
+                  Container(
+                    decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(_kRadius),
-                      child: CachedNetworkImage(
-                        imageUrl: item.fullPosterUrl,
-                        width: _kPosterW,
-                        height: _kPosterH,
-                        fit: BoxFit.cover,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 20,
+                          spreadRadius: -5,
+                          offset: const Offset(0, 10),
+                        )
+                      ],
+                    ),
+                    child: Hero(
+                      tag: 'poster-${item.id}',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(_kRadius),
+                        child: CachedNetworkImage(
+                          imageUrl: item.fullPosterUrl,
+                          width: _kPosterW,
+                          height: _kPosterH,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
-                  ).animate().scale(duration: 380.ms, curve: Curves.easeOutBack),
+                  ).animate().scale(duration: 400.ms, curve: Curves.easeOutCubic),
 
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 20),
 
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _accent,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            item.mediaType == 'tv' ? 'SERIES' : 'MOVIE',
-                            style: _font(context, size: 9.5, weight: FontWeight.w700, spacing: 1.2),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
+                        _TypeTag(item.mediaType == 'tv' ? 'TV SERIES' : 'MOVIE'),
+                        const SizedBox(height: 12),
                         Text(
                           item.title,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 26,
-                            color: isDark ? Colors.white : cs.onSurface,
-                            height: 1.1,
+                            fontSize: 34,
+                            color: Colors.white,
+                            height: 1.05,
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ],
-                    ).animate().fadeIn(delay: 180.ms).slideX(begin: 0.06, curve: Curves.easeOut),
+                    ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.1),
                   ),
                 ],
               ),
             ),
 
-            // Nav buttons
+            // Nav Bar
             Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 16, right: 16,
+              top: MediaQuery.of(context).padding.top + 10,
+              left: paddingH, right: paddingH,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _NavBtn(icon: CupertinoIcons.chevron_back, onTap: onBack),
-                  _NavBtn(
-                    icon: isFavorite ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                    onTap: onBookmark,
-                    active: isFavorite,
+                  _CircleGlassBtn(icon: CupertinoIcons.chevron_back, onTap: onBack),
+                  Row(
+                    children: [
+                      _CircleGlassBtn(
+                        icon: isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                        onTap: onBookmark,
+                        active: isFavorite,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -438,32 +588,48 @@ class _HeroAppBar extends StatelessWidget {
   }
 }
 
-// ── Nav Button ────────────────────────────────────────────────────────────────
+class _TypeTag extends StatelessWidget {
+  final String text;
+  const _TypeTag(this.text);
 
-class _NavBtn extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _accent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: _font(context, size: 10, weight: FontWeight.w900, spacing: 1.5, color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _CircleGlassBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool active;
-
-  const _NavBtn({required this.icon, required this.onTap, this.active = false});
+  const _CircleGlassBtn({required this.icon, required this.onTap, this.active = false});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 40, height: 40,
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            width: 48, height: 48,
             decoration: BoxDecoration(
-              color: active ? _accent.withOpacity(0.3) : Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+              color: active ? _accent.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
             ),
-            child: Icon(icon, color: Colors.white, size: 18),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
         ),
       ),
@@ -471,98 +637,7 @@ class _NavBtn extends StatelessWidget {
   }
 }
 
-// ── Meta chip ─────────────────────────────────────────────────────────────────
-
-class _MetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool accent;
-  const _MetaChip({required this.icon, required this.label, this.accent = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
-    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
-    final dimColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.4);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.07) : cs.onSurface.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.08),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: accent ? const Color(0xFFFFCB45) : dimColor),
-          const SizedBox(width: 6),
-          Text(label, style: _font(context, size: 12.5, weight: FontWeight.w600, color: subColor)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Square Action Button ──────────────────────────────────────────────────────
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
-  const _ActionButton({required this.icon, required this.label, required this.onTap, this.active = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
-    final subColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.38);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: active ? _accent.withOpacity(0.18) : (isDark ? Colors.white.withOpacity(0.07) : cs.onSurface.withOpacity(0.05)),
-              borderRadius: BorderRadius.circular(_kRadius),
-              border: Border.all(
-                color: active ? _accent.withOpacity(0.4) : (isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.1)),
-                width: 0.5,
-              ),
-            ),
-            child: Icon(icon, color: active ? _accent : (isDark ? Colors.white : cs.onSurface), size: 20),
-          ),
-          const SizedBox(height: 7),
-          Text(label, style: _font(context, size: 11, color: subColor, weight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Section Title ─────────────────────────────────────────────────────────────
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Theme.of(context).colorScheme.onSurface;
-    return Text(text, style: GoogleFonts.dmSerifDisplay(fontSize: 20, color: textColor));
-  }
-}
-
-// ── Cast Card ─────────────────────────────────────────────────────────────────
+// ── Other components ──────────────────────────────────────────────────────────
 
 class _CastCard extends StatelessWidget {
   final dynamic cast;
@@ -570,43 +645,34 @@ class _CastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
-    final subColor = isDark ? Colors.white70 : cs.onSurface.withOpacity(0.7);
-
     return SizedBox(
-      width: 72,
+      width: 80,
       child: Column(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(36),
-            child: CachedNetworkImage(
-              imageUrl: cast.fullProfileUrl,
-              width: 64, height: 64, fit: BoxFit.cover,
-              placeholder: (_, __) => Container(
-                color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
-                child: Icon(CupertinoIcons.person, size: 24, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.1)),
-              ),
-              errorWidget: (_, __, ___) => Container(
-                color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
-                child: Icon(CupertinoIcons.person_fill, size: 24, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.1)),
-              ),
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _accent.withValues(alpha: 0.3), width: 1.5),
+            ),
+            child: CircleAvatar(
+              radius: 35,
+              backgroundImage: CachedNetworkImageProvider(cast.fullProfileUrl),
+              backgroundColor: Colors.white12,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             cast.name,
             textAlign: TextAlign.center,
             maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: _font(context, size: 11, color: subColor, weight: FontWeight.w500, height: 1.3),
+            style: _font(context, size: 12, weight: FontWeight.w600, height: 1.2),
           ),
         ],
       ),
     );
   }
 }
-
-// ── Similar Card ──────────────────────────────────────────────────────────────
 
 class _SimilarCard extends StatelessWidget {
   final MediaItem item;
@@ -615,13 +681,10 @@ class _SimilarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subColor = isDark ? Colors.white70 : Theme.of(context).colorScheme.onSurface.withOpacity(0.7);
-
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 120,
+        width: 135,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -631,18 +694,19 @@ class _SimilarCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: item.fullPosterUrl,
                   fit: BoxFit.cover, width: double.infinity,
-                  errorWidget: (_, __, ___) => Container(
-                    color: isDark ? Colors.white10 : Colors.black12,
-                    child: const Icon(CupertinoIcons.film, color: Colors.white24),
-                  ),
+                  placeholder: (_, _) => Container(color: Colors.white.withValues(alpha: 0.05)),
                 ),
               ),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 10),
             Text(
               item.title,
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: _font(context, size: 12, color: subColor, weight: FontWeight.w600),
+              style: _font(context, size: 13, weight: FontWeight.w700),
+            ),
+            Text(
+              item.year,
+              style: _font(context, size: 10, color: Colors.white.withValues(alpha: 0.4)),
             ),
           ],
         ),
@@ -655,7 +719,8 @@ class _SimilarCard extends StatelessWidget {
 
 class _EpisodeSelectorSheet extends StatefulWidget {
   final MediaDetail tvDetail;
-  const _EpisodeSelectorSheet({required this.tvDetail});
+  final void Function(int season, int episode)? onEpisodeSelected;
+  const _EpisodeSelectorSheet({required this.tvDetail, this.onEpisodeSelected});
 
   @override
   State<_EpisodeSelectorSheet> createState() => _EpisodeSelectorSheetState();
@@ -665,7 +730,7 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
   late TvSeason _selectedSeason;
   List<TvEpisode> _episodes = [];
   bool _loading = false;
-  final _service = TmdbService();
+  final _api = ApiService.instance;
 
   @override
   void initState() {
@@ -679,7 +744,7 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
 
   Future<void> _loadEpisodes() async {
     setState(() => _loading = true);
-    final season = await _service.getTvSeasonDetail(widget.tvDetail.id, _selectedSeason.seasonNumber);
+    final season = await _api.getTvSeasonDetail(widget.tvDetail.id, _selectedSeason.seasonNumber);
     if (mounted) {
       setState(() {
         _episodes = season?.episodes ?? [];
@@ -693,75 +758,80 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
     final size = MediaQuery.of(context).size;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cs = Theme.of(context).colorScheme;
-    final bgColor = isDark ? const Color(0xEE0F0F0F) : cs.surface.withOpacity(0.95);
+    final bgColor = isDark ? const Color(0xFF0F0F0F) : cs.surface;
     final textColor = isDark ? Colors.white : cs.onSurface;
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          height: size.height * 0.88,
-          color: bgColor,
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
-                child: Row(
-                  children: [
-                    Text('Episodes', style: GoogleFonts.dmSerifDisplay(fontSize: 22, color: textColor)),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withOpacity(0.08) : cs.onSurface.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isDark ? Colors.white12 : cs.onSurface.withOpacity(0.1), width: 0.5),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<TvSeason>(
-                          value: _selectedSeason,
-                          dropdownColor: isDark ? const Color(0xFF1A1A1A) : cs.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          icon: Icon(CupertinoIcons.chevron_down, color: isDark ? Colors.white70 : cs.onSurface, size: 14),
-                          isDense: true,
-                          style: _font(context, size: 13, weight: FontWeight.w600),
-                          items: widget.tvDetail.seasons
-                              .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
-                              .toList(),
-                          onChanged: (s) {
-                            if (s != null) {
-                              setState(() => _selectedSeason = s);
-                              _loadEpisodes();
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(color: (isDark ? Colors.white : cs.onSurface).withOpacity(0.06), height: 1),
-              Expanded(
-                child: _loading
-                    ? const Center(child: M3Loading(message: 'Loading episodes…'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                        itemCount: _episodes.length,
-                        itemBuilder: (_, i) => _EpisodeTile(episode: _episodes[i], tvDetail: widget.tvDetail),
-                      ),
-              ),
-            ],
+    return Container(
+      height: size.height * 0.9,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F0F0F), // Fixed solid dark background
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 16, 20),
+            child: Row(
+              children: [
+                Text('Episodes', style: GoogleFonts.dmSerifDisplay(fontSize: 28, color: Colors.white, letterSpacing: 0.5)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<TvSeason>(
+                      value: _selectedSeason,
+                      dropdownColor: const Color(0xFF1A1A1A),
+                      borderRadius: BorderRadius.circular(16),
+                      icon: const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(CupertinoIcons.chevron_down, color: Colors.white70, size: 14),
+                      ),
+                      style: _font(context, size: 14, weight: FontWeight.w700, color: Colors.white),
+                      items: widget.tvDetail.seasons
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
+                          .toList(),
+                      onChanged: (s) {
+                        if (s != null) {
+                          setState(() => _selectedSeason = s);
+                          _loadEpisodes();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white10),
+          Expanded(
+            child: _loading
+                ? const Center(child: M3Loading(message: 'Loading your episodes...'))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _episodes.length,
+                    itemBuilder: (_, i) => _EpisodeTile(
+                      episode: _episodes[i],
+                      tvDetail: widget.tvDetail,
+                      onEpisodeSelected: widget.onEpisodeSelected,
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -772,76 +842,114 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
 class _EpisodeTile extends StatelessWidget {
   final TvEpisode episode;
   final MediaDetail tvDetail;
-  const _EpisodeTile({required this.episode, required this.tvDetail});
+  final void Function(int season, int episode)? onEpisodeSelected;
+  const _EpisodeTile({required this.episode, required this.tvDetail, this.onEpisodeSelected});
 
   @override
   Widget build(BuildContext context) {
     final ep = episode;
     final isUpcoming = ep.airDate != null && ep.airDate!.isAfter(DateTime.now());
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
-    final subColor = isDark ? Colors.white38 : cs.onSurface.withOpacity(0.4);
+    final subColor = Colors.white54;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Opacity(
-        opacity: isUpcoming ? 0.45 : 1.0,
-        child: InkWell(
-          onTap: isUpcoming ? null : () {
-            Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => PlayerScreen(item: tvDetail, season: ep.seasonNumber, episode: ep.episodeNumber),
-            ));
-          },
-          borderRadius: BorderRadius.circular(_kRadius),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : cs.onSurface.withOpacity(0.03),
-              borderRadius: BorderRadius.circular(_kRadius),
-              border: Border.all(color: isDark ? Colors.white.withOpacity(0.06) : cs.onSurface.withOpacity(0.05), width: 0.5),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: ep.fullStillUrl.isNotEmpty
-                      ? CachedNetworkImage(imageUrl: ep.fullStillUrl, width: 96, height: 56, fit: BoxFit.cover)
-                      : Container(
-                          width: 96, height: 56,
-                          color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
-                          child: Icon(CupertinoIcons.film_fill, color: isDark ? Colors.white24 : cs.onSurface.withOpacity(0.2), size: 20),
-                        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03), // Subtle dark card
+        borderRadius: BorderRadius.circular(_kRadius + 4),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isUpcoming ? null : () {
+          if (onEpisodeSelected != null) {
+            Navigator.pop(context); // Close sheet
+            onEpisodeSelected!(ep.seasonNumber, ep.episodeNumber);
+            return;
+          }
+
+          AdService.showRewardedAd(
+            context: context,
+            onComplete: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => PlayerScreen(
+                  item: tvDetail,
+                  season: ep.seasonNumber,
+                  episode: ep.episodeNumber,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Ep ${ep.episodeNumber}  ·  ${ep.name}', maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: _font(context, size: 13, weight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      Text(ep.overview ?? 'No description.', maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: _font(context, size: 12, color: subColor, height: 1.5)),
-                    ],
+              ));
+            },
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Episode Thumbnail
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: ep.fullStillUrl,
+                      width: 130, height: 80, fit: BoxFit.cover,
+                      placeholder: (_, _) => Container(color: Colors.white.withValues(alpha: 0.05)),
+                      errorWidget: (_, _, _) => Container(
+                        width: 130, height: 80,
+                        color: Colors.white10,
+                        child: Icon(CupertinoIcons.film, color: Colors.white24, size: 24),
+                      ),
+                    ),
                   ),
+                  if (isUpcoming)
+                    Container(
+                      width: 130, height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(CupertinoIcons.lock_fill, color: Colors.white70, size: 24),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              
+              // Metadata
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Episode ${ep.episodeNumber}',
+                      style: _font(context, size: 11, weight: FontWeight.w900, color: _accent.withValues(alpha: 0.9), spacing: 0.5),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ep.name,
+                      style: _font(context, size: 15, weight: FontWeight.w800, color: isUpcoming ? Colors.white38 : Colors.white),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ep.overview?.isNotEmpty == true ? ep.overview! : 'No description available.',
+                      style: _font(context, size: 12, color: subColor, height: 1.3),
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                isUpcoming
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : cs.onSurface.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text('SOON', style: _font(context, size: 9, weight: FontWeight.w700, color: subColor, spacing: 0.8)),
-                      )
-                    : const Icon(CupertinoIcons.play_circle_fill, color: _accent, size: 28),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              // Play button removed as requested for a cleaner look
+            ],
           ),
         ),
       ),
     );
   }
 }
+
+
+
