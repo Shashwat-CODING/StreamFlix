@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:app_links/app_links.dart';
 import 'package:flutter/services.dart';
 import 'package:fvp/fvp.dart' as fvp;
 import 'theme/app_theme.dart';
@@ -27,7 +26,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/permission_service.dart';
 import 'package:media_store_plus/media_store_plus.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:window_manager/window_manager.dart';
+import 'services/window_service.dart';
 import 'dart:io';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -50,25 +49,7 @@ void main() async {
     await PermissionService.requestAll();
   }
 
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await windowManager.ensureInitialized();
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(1280, 800),
-      minimumSize: Size(1000, 600),
-      center: true,
-      backgroundColor: Colors.transparent,
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
-      title: "StreamFlix",
-    );
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
-
-    // Register deep link protocol
-    AppLinks().register(scheme: 'drishya');
-  }
+  await WindowService.init();
   
   await StreamingService.instance.initDownloads();
   runApp(const DrishyaApp());
