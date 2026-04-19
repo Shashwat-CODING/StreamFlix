@@ -1,8 +1,8 @@
-name: streamflix
-description: "StreamFlix – All-in-one streaming app for Movies, TV, Anime, Live TV & Sports."
+name: drishya
+description: "Drishya – A premium all-in-one streaming experience for Movies, TV, Anime, Live TV & Sports."
 publish_to: 'none'
 
-version: 1.7.0
+version: 2.1.0
 
 environment:
   sdk: ^3.11.0
@@ -12,21 +12,29 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.2.1
-  # video_player and fvp removed in favor of media_kit
-  media_kit: ^1.2.6
-  media_kit_video: ^2.0.1
-  media_kit_libs_video: ^1.0.7
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
   wakelock_plus: ^1.2.10
+  video_player: ^2.11.1
+  fvp: ^0.35.2
 
   dynamic_color: ^1.7.0
   shared_preferences: ^2.3.2
   loading_indicator_m3e: ^0.1.0
   url_launcher: ^6.3.2
   package_info_plus: ^9.0.0
+  google_mobile_ads: ^7.0.0
+  flutter_inappwebview: ^6.1.5
+  app_links: 6.3.2
+  share_plus: 10.1.4
+  dio: ^5.9.2
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
+  flutter_local_notifications: ^17.0.0
+  media_store_plus: ^0.1.3
+  flutter_markdown: ^0.7.3
 
 dev_dependencies:
   flutter_test:
@@ -40,6 +48,21 @@ flutter:
     - assets/
 
 flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: "assets/icon.png"
+    favicon_path: "assets/icon.png"
   windows:
     generate: true
     image_path: "assets/icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/icon.png"
+  linux:
+    generate: true
+    image_path: "assets/icon.png"
+  image_path: "assets/icon.png"
+
