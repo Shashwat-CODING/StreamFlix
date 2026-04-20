@@ -99,9 +99,9 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                         height: 1,
                       ),
                       children: [
-                        const TextSpan(
+                        TextSpan(
                           text: 'Coming\n',
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: cs.onSurface),
                         ),
                         TextSpan(
                           text: 'Soon',

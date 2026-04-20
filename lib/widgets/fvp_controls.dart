@@ -7,12 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 class FvpCustomControls extends StatefulWidget {
   final VideoPlayerController controller;
   final VoidCallback onFullscreenToggle;
+  final VoidCallback? onShowSettings;
   final Widget? topBar;
 
   const FvpCustomControls({
     super.key,
     required this.controller,
     required this.onFullscreenToggle,
+    this.onShowSettings,
     this.topBar,
   });
 
@@ -94,6 +96,15 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
             ),
           ),
           
+          // Buffering Indicator
+          if (widget.controller.value.isBuffering)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Colors.red,
+                strokeWidth: 3,
+              ),
+            ),
+          
           if (_showControls) ...[
             // Overlay gradient for better visibility
             Container(
@@ -158,7 +169,7 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
             
             // Bottom Bar
             Positioned(
-              bottom: 0,
+              bottom: 24, // Shifted up a bit
               left: 0,
               right: 0,
               child: Column(
@@ -194,6 +205,20 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
                           ),
                         ),
                         const Spacer(),
+                        IconButton(
+                          icon: const Icon(
+                            CupertinoIcons.settings,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            if (widget.onShowSettings != null) {
+                              widget.onShowSettings!();
+                            } else {
+                              _showSettings(context);
+                            }
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(
                             CupertinoIcons.fullscreen,
@@ -247,6 +272,85 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _showSettings(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Playback Settings',
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(CupertinoIcons.speedometer, color: Colors.white70),
+              title: Text('Playback Speed', style: GoogleFonts.dmSans(color: Colors.white)),
+              trailing: Text('${widget.controller.value.playbackSpeed}x', 
+                style: GoogleFonts.dmSans(color: Colors.red, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(context);
+                _showSpeedSelector(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSpeedSelector(BuildContext context) {
+    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1C1C1E),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Select Speed',
+              style: GoogleFonts.dmSans(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...speeds.map((s) => ListTile(
+              title: Text('${s}x', 
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  color: widget.controller.value.playbackSpeed == s ? Colors.red : Colors.white70,
+                  fontWeight: widget.controller.value.playbackSpeed == s ? FontWeight.bold : FontWeight.normal,
+                )),
+              onTap: () {
+                widget.controller.setPlaybackSpeed(s);
+                Navigator.pop(context);
+              },
+            )),
+          ],
+        ),
       ),
     );
   }

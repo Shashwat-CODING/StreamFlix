@@ -32,12 +32,11 @@ TextStyle _font(BuildContext context, {
   double spacing = 0,
   double height = 1.4,
 }) {
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  final defaultColor = isDark ? Colors.white : Theme.of(context).colorScheme.onSurface;
+  final cs = Theme.of(context).colorScheme;
   return GoogleFonts.dmSans(
     fontSize: size,
     fontWeight: weight,
-    color: color ?? defaultColor,
+    color: color ?? cs.onSurface,
     letterSpacing: spacing,
     height: height,
   );
@@ -348,7 +347,10 @@ class _MetaDivider extends StatelessWidget {
     return Container(
       width: 4, height: 4,
       margin: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
     );
   }
 }
@@ -373,7 +375,7 @@ class _FullButton extends StatelessWidget {
       child: Container(
         height: 56,
         decoration: BoxDecoration(
-          color: primary ? _accent : Colors.white.withValues(alpha: 0.08),
+          color: primary ? _accent : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(_kRadius),
           boxShadow: primary ? [
             BoxShadow(
@@ -386,11 +388,11 @@ class _FullButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 20),
+            Icon(icon, color: primary ? Colors.white : Theme.of(context).colorScheme.onSurface, size: 20),
             const SizedBox(width: 10),
             Text(
               label,
-              style: _font(context, size: 15, weight: FontWeight.w800, color: Colors.white),
+              style: _font(context, size: 15, weight: FontWeight.w800, color: primary ? Colors.white : Theme.of(context).colorScheme.onSurface),
             ),
           ],
         ),
@@ -418,7 +420,7 @@ class _SquareIconButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(_kRadius),
             border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.06) : cs.onSurface.withValues(alpha: 0.05), width: 0.5),
           ),
-        child: Icon(icon, color: active ? _accent : Colors.white, size: 22),
+        child: Icon(icon, color: active ? _accent : Theme.of(context).colorScheme.onSurface, size: 22),
       ),
     );
   }
@@ -434,7 +436,7 @@ class _SectionTitle extends StatelessWidget {
       text,
       style: GoogleFonts.dmSerifDisplay(
         fontSize: 22,
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.onSurface,
         letterSpacing: 0.2,
       ),
     );
@@ -549,7 +551,7 @@ class _HeroAppBar extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSerifDisplay(
                             fontSize: 34,
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                             height: 1.05,
                             letterSpacing: -0.5,
                           ),
@@ -625,11 +627,11 @@ class _CircleGlassBtn extends StatelessWidget {
           child: Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
-              color: active ? _accent.withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.12),
+              color: active ? _accent.withValues(alpha: 0.8) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+              border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15), width: 1),
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
+            child: Icon(icon, color: active ? Colors.white : Theme.of(context).colorScheme.onSurface, size: 22),
           ),
         ),
       ),
@@ -764,9 +766,9 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
     return Container(
       height: size.height * 0.9,
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0F0F), // Fixed solid dark background
+        color: bgColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.05), width: 1),
       ),
       child: Column(
         children: [
@@ -774,7 +776,7 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
           Container(
             width: 40, height: 4,
             decoration: BoxDecoration(
-              color: Colors.white12,
+              color: cs.onSurface.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -782,25 +784,25 @@ class _EpisodeSelectorSheetState extends State<_EpisodeSelectorSheet> {
             padding: const EdgeInsets.fromLTRB(24, 24, 16, 20),
             child: Row(
               children: [
-                Text('Episodes', style: GoogleFonts.dmSerifDisplay(fontSize: 28, color: Colors.white, letterSpacing: 0.5)),
+                Text('Episodes', style: GoogleFonts.dmSerifDisplay(fontSize: 28, color: textColor, letterSpacing: 0.5)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: cs.onSurface.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<TvSeason>(
                       value: _selectedSeason,
-                      dropdownColor: const Color(0xFF1A1A1A),
+                      dropdownColor: bgColor,
                       borderRadius: BorderRadius.circular(16),
-                      icon: const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(CupertinoIcons.chevron_down, color: Colors.white70, size: 14),
+                      icon: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Icon(CupertinoIcons.chevron_down, color: textColor.withValues(alpha: 0.7), size: 14),
                       ),
-                      style: _font(context, size: 14, weight: FontWeight.w700, color: Colors.white),
+                      style: _font(context, size: 14, weight: FontWeight.w700, color: textColor),
                       items: widget.tvDetail.seasons
                           .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
                           .toList(),

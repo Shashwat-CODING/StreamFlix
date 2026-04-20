@@ -1372,6 +1372,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           FvpCustomControls(
             controller: _videoPlayerController!,
             onFullscreenToggle: _toggleFullscreen,
+            onShowSettings: _showSettingsSheet,
             topBar: _buildFloatingTopBar(),
           )
         else
@@ -1437,6 +1438,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ),
                     const SizedBox(height: 16),
                     _sheetOption(
+                      icon: CupertinoIcons.speedometer,
+                      label: 'Playback Speed (${_videoPlayerController?.value.playbackSpeed ?? 1.0}x)',
+                      cs: cs,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showSpeedSelector();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _sheetOption(
                       icon: CupertinoIcons.film,
                       label: 'Video Quality',
                       cs: cs,
@@ -1500,6 +1511,69 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSpeedSelector() {
+    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.8)
+                : cs.surface.withValues(alpha: 0.8),
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(child: _dragHandle()),
+                const SizedBox(height: 20),
+                Text(
+                  'Select Playback Speed',
+                  style: GoogleFonts.dmSerifDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: speeds.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final s = speeds[index];
+                      final isActive = _videoPlayerController?.value.playbackSpeed == s;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _sheetTrackTile(
+                          label: '${s}x',
+                          isActive: isActive,
+                          icon: CupertinoIcons.speedometer,
+                          cs: cs,
+                          onTap: () {
+                            _videoPlayerController?.setPlaybackSpeed(s);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -2622,8 +2696,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           const SizedBox(width: 8),
           _actionChip(
             icon: CupertinoIcons.settings,
-            label: 'Sources',
-            onTap: _showSourcePicker,
+            label: 'Settings',
+            onTap: _showSettingsSheet,
           ),
           const SizedBox(width: 8),
           _actionChip(

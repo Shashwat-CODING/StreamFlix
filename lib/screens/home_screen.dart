@@ -23,20 +23,22 @@ const _kRadius = 14.0;
 const _kRadiusLg = 20.0;
 const _white = Colors.white;
 
-TextStyle _font({
+TextStyle _font(BuildContext context, {
   double size = 14,
   FontWeight weight = FontWeight.w400,
-  Color color = _white,
+  Color? color,
   double spacing = 0,
   double height = 1.4,
-}) =>
-    GoogleFonts.dmSans(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-      letterSpacing: spacing,
-      height: height,
-    );
+}) {
+  final cs = Theme.of(context).colorScheme;
+  return GoogleFonts.dmSans(
+    fontSize: size,
+    fontWeight: weight,
+    color: color ?? cs.onSurface,
+    letterSpacing: spacing,
+    height: height,
+  );
+}
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
 
@@ -423,7 +425,7 @@ class _HeroCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(item.ratingStr,
                             style:
-                                _font(size: 14, weight: FontWeight.w800)),
+                                _font(context, size: 14, weight: FontWeight.w800, color: Colors.white)),
                       ],
                       const SizedBox(width: 12),
                       Container(
@@ -433,7 +435,7 @@ class _HeroCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(item.year,
-                            style: _font(
+                            style: _font(context,
                                 size: 11,
                                 color: Colors.white,
                                 weight: FontWeight.w800)),
@@ -527,7 +529,7 @@ class _HeroBtn extends StatelessWidget {
               const SizedBox(width: 6),
               Flexible(
                 child: Text(label,
-                    style: _font(size: 14, weight: FontWeight.bold),
+                    style: _font(context, size: 14, weight: FontWeight.bold, color: Colors.white),
                     overflow: TextOverflow.ellipsis),
               ),
             ],
@@ -535,13 +537,14 @@ class _HeroBtn extends StatelessWidget {
         ),
       );
     }
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: cs.onSurface.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
@@ -549,13 +552,13 @@ class _HeroBtn extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                color: Colors.white.withValues(alpha: 0.95), size: 16),
+                color: cs.onSurface.withValues(alpha: 0.95), size: 16),
             const SizedBox(width: 6),
             Flexible(
               child: Text(label,
-                  style: _font(
+                  style: _font(context,
                       size: 14,
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: cs.onSurface.withValues(alpha: 0.95),
                       weight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis),
             ),
@@ -586,7 +589,7 @@ class _TypeBadge extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(label,
-              style: _font(
+              style: _font(context,
                   size: 10, color: Colors.white, weight: FontWeight.w900, spacing: 1.2)),
         ),
       ),
@@ -651,7 +654,7 @@ class _ContinueCard extends StatelessWidget {
                   children: [
                     Text(item.title,
                         style:
-                            _font(size: 12, weight: FontWeight.w600),
+                            _font(context, size: 12, weight: FontWeight.w600, color: Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     if (hasProgress) ...[
@@ -717,7 +720,7 @@ class _SectionHeader extends StatelessWidget {
           GestureDetector(
             onTap: () {},
             child: Text('See all',
-                style: _font(
+                style: _font(context,
                     size: 13,
                     color: cs.primary,
                     weight: FontWeight.w600)),
@@ -885,7 +888,7 @@ class _PosterCard extends StatelessWidget {
                           size: 10, color: Color(0xFFFFCB45)),
                       const SizedBox(width: 3),
                       Text(item.ratingStr,
-                          style: _font(
+                          style: _font(context,
                               size: 10,
                               weight: FontWeight.w700,
                               color: _white)),
@@ -905,7 +908,7 @@ class _PosterCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text('SOON',
-                      style: _font(
+                      style: _font(context,
                           size: 9,
                           weight: FontWeight.w800,
                           spacing: 0.6,
@@ -920,7 +923,7 @@ class _PosterCard extends StatelessWidget {
                 child: Text(
                   item.title,
                   style:
-                      _font(size: 12, weight: FontWeight.w600, height: 1.3),
+                      _font(context, size: 12, weight: FontWeight.w600, height: 1.3, color: Colors.white),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

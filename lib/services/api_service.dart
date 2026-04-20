@@ -12,7 +12,7 @@ class ApiService {
   static final ApiService instance = ApiService._();
 
   // ── APP CONFIG ──────────────────────────────────────────────────────────
-  static const String appVersion = 'v2.1';
+  static const String appVersion = 'v2.2';
   static const String websiteUrl = 'https://driishya.vercel.app';
 
   // ── LOGGING ─────────────────────────────────────────────────────────────
@@ -45,11 +45,18 @@ class ApiService {
 
   Future<bool> validateBaseUrl(String url) async {
     try {
+      debugPrint('🔍 [VALIDATE] Testing URL: $url');
       // 1. Clean up the URL (trim whitespace and trailing quotes/junk)
       String formatted = url.trim().replaceAll(RegExp(r'''['" \s]+$'''), '');
+
+      // Also remove leading quotes if any
+      formatted = formatted.replaceAll(RegExp(r'''^['" \s]+'''), '');
+
       if (formatted.endsWith('/')) {
         formatted = formatted.substring(0, formatted.length - 1);
       }
+
+      debugPrint('🔍 [VALIDATE] Formatted URL: $formatted');
 
       // 2. Try health check at root /health first
       if (await _checkHealth('$formatted/health')) return true;
@@ -57,6 +64,7 @@ class ApiService {
       // 3. Try health check at /api/health
       if (await _checkHealth('$formatted/api/health')) return true;
 
+      debugPrint('❌ [VALIDATE] All health checks failed for: $formatted');
       return false;
     } catch (e) {
       _logErr(url, e);
@@ -68,14 +76,18 @@ class ApiService {
     try {
       final uri = Uri.parse(url);
       _logReq(uri.toString());
-      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      // Increased timeout to 30s for slow HF spaces
+      final res = await http.get(uri).timeout(const Duration(seconds: 30));
       _logRes(uri.toString(), res.statusCode);
 
       if (res.statusCode == 200) {
         final body = res.body.trim().toLowerCase();
-        return body == 'ok';
+        debugPrint('📄 [HEALTH] Response body: "$body"');
+        return body == 'ok' || body.contains('ok');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('⚠️ [HEALTH] Check failed for $url: $e');
+    }
     return false;
   }
 

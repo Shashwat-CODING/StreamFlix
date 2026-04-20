@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final cs = Theme.of(context).colorScheme;
     
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A), // Solid deep black
+      backgroundColor: cs.surface, // Theme-aware surface color
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 'Drishya',
                 style: GoogleFonts.dmSerifDisplay(
                   fontSize: 42,
-                  color: Colors.white,
+                  color: cs.onSurface,
                   letterSpacing: -1,
                 ),
               ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
@@ -55,7 +55,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
                   fontSize: 16,
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500,
                 ),
               ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
@@ -66,9 +66,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.03),
+                  color: cs.onSurface.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
                 ),
                 child: Column(
                   children: [
@@ -80,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           'Initial Configuration',
                           style: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: cs.onSurface,
                             fontSize: 15,
                           ),
                         ),
@@ -90,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(
                       'This application requires a backend server to function. Please link your instance to synchronize your library and streaming sources.',
                       style: GoogleFonts.dmSans(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: cs.onSurface.withValues(alpha: 0.5),
                         fontSize: 13,
                         height: 1.5,
                       ),
