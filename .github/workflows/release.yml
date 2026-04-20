@@ -56,8 +56,8 @@ jobs:
       - name: Create NSIS installer script
         shell: pwsh
         run: |
-          $appName  = "Streamflix"
-          $exeName  = "streamflix"
+          $appName  = "Drishya"
+          $exeName  = "Drishya"
           $outFile  = "dist\${appName}-Setup.exe"
           $buildDir = "build\windows\x64\runner\Release"
 
@@ -172,8 +172,8 @@ jobs:
 
       - name: Assemble AppDir
         run: |
-          APP_NAME="Streamflix"
-          EXE_NAME="streamflix"
+          APP_NAME="Drishya"
+          EXE_NAME="Drishya"
           BUILD_DIR="build/linux/x64/release/bundle"
 
           mkdir -p AppDir/usr/bin
@@ -211,7 +211,7 @@ jobs:
 
       - name: Build AppImage
         run: |
-          APP_NAME="Streamflix"
+          APP_NAME="Drishya"
           mkdir -p dist
           ARCH=x86_64 appimagetool AppDir "dist/${APP_NAME}-x86_64.AppImage"
         env:
