@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../widgets/m3_loading.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
-import '../widgets/shimmer_placeholder.dart';
 import 'detail_screen.dart';
+import '../widgets/ios_widgets.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback? onBack;
@@ -20,32 +19,44 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _api = ApiService.instance;
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
+  final _api = ApiService.instance;
+
   List<MediaItem> _results = [];
+  List<MediaItem> _popular = [];
   bool _loading = false;
-  bool _hasSearched = false;
+  bool _loadingPopular = true;
+  bool _searched = false;
+  String _filter = 'all';
   Timer? _debounce;
-  String _selectedFilter = 'all';
 
   @override
   void initState() {
     super.initState();
+    _loadPopular();
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       _controller.text = widget.initialQuery!;
-      _search(widget.initialQuery!);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _doSearch(widget.initialQuery!));
     }
-    // Auto-focus after frame
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusNode.requestFocus(),
-    );
+  }
+
+  Future<void> _loadPopular() async {
+    try {
+      final movies = await _api.getTrendingMovies();
+      if (mounted) {
+        setState(() {
+          _popular = movies.take(12).toList();
+          _loadingPopular = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingPopular = false);
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _focusNode.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -55,513 +66,222 @@ class _SearchScreenState extends State<SearchScreen> {
     if (q.trim().isEmpty) {
       setState(() {
         _results = [];
-        _hasSearched = false;
+        _searched = false;
         _loading = false;
       });
       return;
     }
     setState(() => _loading = true);
-    _debounce = Timer(const Duration(milliseconds: 450), () => _search(q));
+    _debounce = Timer(const Duration(milliseconds: 600), () => _doSearch(q));
   }
 
-  Future<void> _search(String q) async {
-    if (!mounted) return;
+  Future<void> _doSearch(String q) async {
+    if (!mounted || q.trim().isEmpty) return;
+    setState(() {
+      _loading = true;
+      _searched = true;
+    });
     try {
-      final results = await _api.search(q);
+      final r = await _api.search(q.trim());
       if (mounted) {
         setState(() {
-          _results = results;
+          _results = r;
           _loading = false;
-          _hasSearched = true;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  List<MediaItem> get _filteredResults {
-    if (_selectedFilter == 'all') return _results;
-    return _results.where((m) => m.mediaType == _selectedFilter).toList();
+  List<MediaItem> get _shown {
+    if (_filter == 'all') return _results;
+    return _results.where((m) => m.mediaType == _filter).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: cs.surface,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _buildHeader(cs)),
-                SliverToBoxAdapter(child: _buildFilters(cs)),
-                _buildResultsSliver(cs),
-              ],
+    return CupertinoPageScaffold(
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          CupertinoSliverNavigationBar(
+            transitionBetweenRoutes: false,
+            largeTitle: const Text('Search'),
+            backgroundColor: isDark ? const Color(0xCC000000) : const Color(0xCCF2F2F7),
+            border: null,
+          ),
+          SliverToBoxAdapter(
+            child: IOSSearchField(
+              controller: _controller,
+              onChanged: _onChanged,
+              placeholder: 'Movies, TV Shows & more',
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ColorScheme cs) {
-    return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: cs.primary.withValues(alpha: 0.12),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: cs.primary.withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 4),
-                IconButton(
-                  onPressed: () {
-                    if (widget.onBack != null) {
-                      widget.onBack!();
-                    } else {
-                      Navigator.pop(context);
-                    }
-                  },
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(12),
-                  icon: Icon(
-                    CupertinoIcons.chevron_back,
-                    size: 22,
-                    color: cs.onSurface,
-                  ),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    onChanged: _onChanged,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: cs.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search for movies, TV shows...',
-                      hintStyle: GoogleFonts.dmSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                if (_controller.text.isNotEmpty)
-                  IconButton(
-                    onPressed: () {
-                      _controller.clear();
-                      _onChanged('');
-                    },
-                    padding: const EdgeInsets.all(12),
-                    icon: Icon(
-                      CupertinoIcons.xmark_circle_fill,
-                      size: 20,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Icon(
-                      CupertinoIcons.search,
-                      color: cs.primary.withValues(alpha: 0.7),
-                      size: 20,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: -0.1, curve: Curves.easeOut);
-  }
-
-  Widget _buildFilters(ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-      child: Container(
-        height: 54,
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          children: [
-            Expanded(child: _uniqueFilterTab('all', 'All Content', cs)),
-            const SizedBox(width: 4),
-            Expanded(child: _uniqueFilterTab('movie', 'Movies', cs)),
-            const SizedBox(width: 4),
-            Expanded(child: _uniqueFilterTab('tv', 'TV Series', cs)),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1, curve: Curves.easeOut);
-  }
-
-  Widget _uniqueFilterTab(String id, String label, ColorScheme cs) {
-    final selected = _selectedFilter == id;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = id),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          color: selected ? cs.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-            color: selected
-                ? cs.onPrimary
-                : cs.onSurfaceVariant.withValues(alpha: 0.6),
-            letterSpacing: 0.1,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResultsSliver(ColorScheme cs) {
-    if (_loading) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [const M3Loading(message: 'Searching...')],
-          ),
-        ),
-      );
-    }
-    if (!_hasSearched) {
-      return SliverFillRemaining(hasScrollBody: false, child: _buildEmpty(cs));
-    }
-    if (_filteredResults.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: _buildNoResults(cs),
-      );
-    }
-
-    final list = _filteredResults;
-    final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = 2;
-    if (width > 1200) {
-      crossAxisCount = 5;
-    } else if (width > 900) {
-      crossAxisCount = 4;
-    } else if (width > 600) {
-      crossAxisCount = 3;
-    }
-
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          childAspectRatio: 0.68,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, i) => _buildResultCard(list[i], i, cs),
-          childCount: list.length,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResultCard(MediaItem item, int index, ColorScheme cs) {
-    return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DetailScreen(item: item)),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: cs.surfaceContainerHigh,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
-                width: 0.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                item.fullPosterUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: item.fullPosterUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) => const ShimmerPlaceholder(
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                        errorWidget: (_, _, _) => Container(
-                          color: cs.surfaceContainerHighest,
-                          child: Icon(
-                            CupertinoIcons.film,
-                            color: cs.primary.withValues(alpha: 0.3),
-                            size: 32,
-                          ),
-                        ),
-                      )
-                    : Container(color: cs.surfaceContainerHighest),
-                // Gradient
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.1),
-                          Colors.black.withValues(alpha: 0.95),
-                        ],
-                        stops: const [0.5, 0.7, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                // Type badge
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          (item.mediaType == 'tv'
-                                  ? const Color(0xFF5AC8FA)
-                                  : cs.primary)
-                              .withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      item.mediaType == 'tv' ? 'TV' : 'MOVIE',
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ),
-                ),
-                // Bottom info
-                Positioned(
-                  bottom: 10,
-                  left: 10,
-                  right: 10,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+          if (_searched && _results.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      Text(
-                        item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                          shadows: [
-                            const Shadow(
-                              color: Colors.black54,
-                              blurRadius: 4,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.star_fill,
-                                  size: 10,
-                                  color: Color(0xFFFFD700),
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  item.voteAverage > 0
-                                      ? item.voteAverage.toStringAsFixed(1)
-                                      : 'NR',
-                                  style: GoogleFonts.dmSans(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      _FilterChip(label: 'All', active: _filter == 'all', onTap: () => setState(() => _filter = 'all')),
+                      const SizedBox(width: 10),
+                      _FilterChip(label: 'Movies', active: _filter == 'movie', onTap: () => setState(() => _filter = 'movie')),
+                      const SizedBox(width: 10),
+                      _FilterChip(label: 'TV Shows', active: _filter == 'tv', onTap: () => setState(() => _filter = 'tv')),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        )
-        .animate(delay: (index % 12 * 40).ms)
-        .fadeIn(duration: 400.ms, curve: Curves.easeOut)
-        .scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOutBack);
-  }
-
-  Widget _buildEmpty(ColorScheme cs) {
-    return Center(
-      child:
-          Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      CupertinoIcons.search,
-                      size: 56,
-                      color: cs.primary.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Explore Drishya',
-                    style: GoogleFonts.dmSerifDisplay(
-                      fontSize: 22,
-                      color: cs.onSurface,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      'Discover thousands of movies and TV shows from around the world.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 15,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-              .animate()
-              .fadeIn(duration: 600.ms)
-              .scale(
-                begin: const Offset(0.95, 0.95),
-                curve: Curves.easeOutBack,
               ),
+            ),
+          SliverFillRemaining(
+            child: _buildBody(theme),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildNoResults(ColorScheme cs) {
+  Widget _buildBody(CupertinoThemeData theme) {
+    if (_loading) {
+      return const Center(child: CupertinoActivityIndicator(radius: 15));
+    }
+
+    if (!_searched) {
+      return _buildDiscoverView(theme);
+    }
+
+    final shown = _shown;
+    if (shown.isEmpty) {
+      return _buildNoResults(theme);
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: shown.length,
+      itemBuilder: (_, i) => _ResultCard(
+        item: shown[i],
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          CupertinoPageRoute(builder: (_) => DetailScreen(item: shown[i])),
+        ),
+      ).animate().fadeIn(delay: (i * 30).ms),
+    );
+  }
+
+  Widget _buildDiscoverView(CupertinoThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Popular Now',
+          style: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_loadingPopular)
+          const Center(child: CupertinoActivityIndicator())
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 0.65,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: _popular.length,
+            itemBuilder: (_, i) => _ResultCard(
+              item: _popular[i],
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                CupertinoPageRoute(builder: (_) => DetailScreen(item: _popular[i])),
+              ),
+            ).animate().fadeIn(delay: (i * 30).ms),
+          ),
+        const SizedBox(height: 120),
+      ],
+    );
+  }
+
+  Widget _buildNoResults(CupertinoThemeData theme) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: cs.errorContainer.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              CupertinoIcons.search_circle,
-              size: 60,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-            ),
-          ),
-          const SizedBox(height: 24),
+          Icon(CupertinoIcons.search, size: 64, color: CupertinoColors.systemGrey3),
+          const SizedBox(height: 16),
           Text(
-            'No matches found',
-            style: GoogleFonts.dmSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try different keywords or filters.',
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
+            'No results found',
+            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
-      ).animate().fadeIn().shake(duration: 400.ms),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? theme.primaryColor : CupertinoColors.systemGrey6,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            color: active ? CupertinoColors.white : CupertinoColors.systemGrey,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultCard extends StatelessWidget {
+  final MediaItem item;
+  final VoidCallback onTap;
+  const _ResultCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: CachedNetworkImage(
+          imageUrl: item.fullPosterUrl,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => Container(color: CupertinoColors.systemGrey5),
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ShimmerPlaceholder extends StatelessWidget {
@@ -20,15 +20,15 @@ class ShimmerPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     final defaultBase = isDark
         ? const Color(0xFF1E1E1E)
-        : cs.surfaceContainerHigh;
+        : const Color(0xFFE5E5EA);
     final defaultHighlight = isDark
         ? const Color(0xFF2A2A2A)
-        : cs.surfaceContainerHighest;
+        : const Color(0xFFF2F2F7);
 
     return SizedBox(
       width: width == double.infinity ? null : width,
@@ -48,3 +48,4 @@ class ShimmerPlaceholder extends StatelessWidget {
     );
   }
 }
+

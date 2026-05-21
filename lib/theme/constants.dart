@@ -12,5 +12,6 @@ class AppConstants {
       'https://iptv-org.github.io/iptv/categories/entertainment.m3u';
 
   // App
-  static const String appName = 'Drishya';
+  static const String appName = 'Luxa';
 }
+

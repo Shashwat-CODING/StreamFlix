@@ -1,10 +1,12 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/music_service.dart';
+import '../widgets/mini_player_wrapper.dart';
 
 class GameViewScreen extends StatefulWidget {
   final String url;
@@ -24,13 +26,12 @@ class _GameViewScreenState extends State<GameViewScreen> {
   InAppWebViewController? webViewController;
   bool _isLoading = true;
 
-  // We fallback to external browser on Linux, but Windows and Mac are supported natively by flutter_inappwebview
   bool get _isLinux => !kIsWeb && Platform.isLinux;
 
   @override
   void initState() {
+    MusicService.instance.stopMusic();
     super.initState();
-    // Auto-rotate to landscape if possible, or just keep it flexible
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
@@ -48,25 +49,31 @@ class _GameViewScreenState extends State<GameViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
+    return MiniPlayerWrapper(
+      child: CupertinoPageScaffold(
+        backgroundColor: CupertinoColors.black,
+        navigationBar: CupertinoNavigationBar(
+          transitionBetweenRoutes: false,
+          middle: Text(
+            widget.title,
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: CupertinoColors.white),
+          ),
+          backgroundColor: CupertinoColors.black.withValues(alpha: 0.8),
+          leading: CupertinoButton(
+            padding: EdgeInsets.zero,
+            child: const Icon(CupertinoIcons.back, color: CupertinoColors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          trailing: !_isLinux && webViewController != null
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: const Icon(CupertinoIcons.refresh, color: CupertinoColors.white),
+                  onPressed: () => webViewController!.reload(),
+                )
+              : null,
         ),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (!_isLinux && webViewController != null)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => webViewController!.reload(),
-            ),
-        ],
+        child: SafeArea(child: _buildBody()),
       ),
-      body: _buildBody(),
     );
   }
 
@@ -76,25 +83,28 @@ class _GameViewScreenState extends State<GameViewScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.videogame_asset, size: 80, color: Colors.white54),
+            const Icon(CupertinoIcons.gamecontroller, size: 80, color: CupertinoColors.systemGrey),
             const SizedBox(height: 16),
             const Text(
               'Games play best in your browser on desktop.',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: CupertinoColors.white, fontSize: 16),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            CupertinoButton(
               onPressed: () => launchUrl(
                 Uri.parse(widget.url),
                 mode: LaunchMode.externalApplication,
               ),
-              icon: const Icon(Icons.open_in_browser),
-              label: const Text('Play Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE50914),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              color: const Color(0xFFE50914),
+              borderRadius: BorderRadius.circular(30),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.arrow_up_right_square, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Play Now', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
               ),
             ),
           ],
@@ -133,9 +143,12 @@ class _GameViewScreenState extends State<GameViewScreen> {
         ),
         if (_isLoading)
           const Center(
-            child: CircularProgressIndicator(color: Color(0xFFE50914)),
+            child: CupertinoActivityIndicator(radius: 15, color: Color(0xFFE50914)),
           ),
       ],
     );
   }
 }
+
+
+

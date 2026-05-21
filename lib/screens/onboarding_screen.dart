@@ -1,12 +1,10 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
-import '../services/deeplink_service.dart';
-import '../main.dart';
+import '../theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,151 +16,249 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
     
-    return Scaffold(
-      backgroundColor: cs.surface, // Theme-aware surface color
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
-              
-              // Logo
-              Image.asset(
-                'assets/logo.png',
-                width: 100,
-                height: 100,
-              ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
-
-              const SizedBox(height: 32),
-
-              Text(
-                'Drishya',
-                style: GoogleFonts.dmSerifDisplay(
-                  fontSize: 42,
-                  color: cs.onSurface,
-                  letterSpacing: -1,
-                ),
-              ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
-
-              const SizedBox(height: 12),
-
-              Text(
-                'Cinematic Excellence. Everywhere.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                  fontSize: 16,
-                  color: cs.onSurface.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.w500,
-                ),
-              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
-
-              const Spacer(flex: 1),
-
-              // Setup Guide
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: cs.onSurface.withValues(alpha: 0.08)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(CupertinoIcons.settings, color: Color(0xFFE50914), size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Initial Configuration',
-                          style: GoogleFonts.dmSans(
-                            fontWeight: FontWeight.w800,
-                            color: cs.onSurface,
-                            fontSize: 15,
+    return CupertinoPageScaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      child: Stack(
+        children: [
+          // Dynamic Background Blobs
+          Positioned(
+            top: -100,
+            right: -50,
+            child: _AmbientBlob(
+              color: const Color(0xFFC9A7FF).withValues(alpha: 0.15),
+              size: 300,
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: _AmbientBlob(
+              color: const Color(0xFFFFB3D1).withValues(alpha: 0.15),
+              size: 250,
+            ),
+          ),
+          
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 3),
+                  
+                  // Logo Section
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        gradient: LinearGradient(
+                          begin: AppTheme.luxaGradient.begin,
+                          end: AppTheme.luxaGradient.end,
+                          colors: AppTheme.luxaGradient.colors.map((c) => c.withValues(alpha: 0.15)).toList(),
+                          stops: AppTheme.luxaGradient.stops,
+                        ),
+                        border: Border.all(color: onSurface.withValues(alpha: 0.1)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: onSurface.withValues(alpha: 0.05),
+                            blurRadius: 20,
+                            spreadRadius: 5,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'This application requires a backend server to function. Please link your instance to synchronize your library and streaming sources.',
-                      style: GoogleFonts.dmSans(
-                        color: cs.onSurface.withValues(alpha: 0.5),
-                        fontSize: 13,
-                        height: 1.5,
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 600.ms),
-
-              const SizedBox(height: 20),
-
-              // Disclaimer/About
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.1)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(CupertinoIcons.info_circle_fill, color: Colors.amber, size: 16),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Disclaimer: Drishya is an aggregator. We do not host, store, or distribute any copyrighted media. All content is fetched live from third-party community-driven APIs.',
-                        style: GoogleFonts.dmSans(
-                          color: Colors.amber.withValues(alpha: 0.8),
-                          fontSize: 11,
-                          height: 1.5,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: Image.asset(
+                          'assets/logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ).animate().fadeIn(delay: 700.ms),
+                  ).animate().scale(duration: 1000.ms, curve: Curves.easeOutBack).fadeIn(),
 
-              const Spacer(flex: 2),
+                  const SizedBox(height: 40),
 
-              // Action Button
-              GestureDetector(
-                onTap: () => _launchConfig(),
-                child: Container(
-                  height: 60,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE50914),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Open Setup Portal',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  // Brand Name
+                  ShaderMask(
+                    shaderCallback: (bounds) => AppTheme.luxaGradient.createShader(
+                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                     ),
-                  ),
-                ),
-              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2),
+                    child: Text(
+                      'Luxa',
+                      style: GoogleFonts.outfit(
+                        fontSize: 64,
+                        color: CupertinoColors.white,
+                        letterSpacing: -2.0,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.9, 0.9), curve: Curves.easeOut),
 
-              const SizedBox(height: 32),
+                  const SizedBox(height: 8),
+
+                  // Tagline
+                  Text(
+                    'Experience the Future of Streaming',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      color: onSurface.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.2,
+                    ),
+                  ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+
+                  const Spacer(flex: 2),
+
+                  // Feature Cards / Setup Guide (Glassmorphic)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(32),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                      child: Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: onSurface.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(color: onSurface.withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildFeatureRow(
+                              CupertinoIcons.bolt_fill,
+                              const Color(0xFFC9A7FF),
+                              'Ultra Fast Streaming',
+                              'Experience lag-free 4K content globally.',
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Container(height: 1, color: CupertinoColors.systemGrey5.withValues(alpha: 0.2)),
+                            ),
+                            _buildFeatureRow(
+                              CupertinoIcons.link,
+                              CupertinoColors.systemBlue,
+                              'Instance Configuration',
+                              'Link your backend to sync your private library.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+
+                  const Spacer(flex: 2),
+
+                  // Action Button
+                  CupertinoButton(
+                    onPressed: () => _launchConfig(),
+                    padding: EdgeInsets.zero,
+                    child: Container(
+                      height: 60,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Get Started',
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: CupertinoColors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(CupertinoIcons.arrow_right, color: CupertinoColors.white, size: 20),
+                        ],
+                      ),
+                    ),
+                  ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.5),
+
+                  const SizedBox(height: 24),
+                  
+                  // Footer Info
+                  Text(
+                    'By continuing, you agree to our Terms of Service.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: onSurface.withValues(alpha: 0.3),
+                    ),
+                  ).animate().fadeIn(delay: 1000.ms),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureRow(IconData icon, Color color, String title, String subtitle) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  color: onSurface,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: GoogleFonts.outfit(
+                  color: onSurface.withValues(alpha: 0.4),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
   void _launchConfig() async {
     final url = Uri.parse('${ApiService.websiteUrl}/config');
-    // Force external application (browser) to avoid deep-link hijacking loops
     await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 }
@@ -175,15 +271,20 @@ class _AmbientBlob extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size, height: size,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-        child: Container(color: Colors.transparent),
+        filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+        child: Container(color: CupertinoColors.transparent),
       ),
     );
   }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../services/library_service.dart';
 import '../models/media_item.dart';
 
@@ -9,7 +9,10 @@ class PosterTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
       onTap: onTap,
       child: Column(children: [
         Expanded(
@@ -18,7 +21,7 @@ class PosterTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: CupertinoColors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -27,17 +30,15 @@ class PosterTile extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF1C1C1E)
-                    : const Color(0xFFF2F2F7),
+                color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
                 child: Stack(children: [
                   Positioned.fill(
                     child: item.posterPath != null
                         ? Image.network('https://image.tmdb.org/t/p/w500${item.posterPath}', fit: BoxFit.cover)
-                        : Center(
+                        : const Center(
                             child: Icon(
-                              Icons.movie_outlined,
-                              color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.6),
+                              CupertinoIcons.film,
+                              color: CupertinoColors.systemGrey,
                               size: 32,
                             ),
                           ),
@@ -53,9 +54,9 @@ class PosterTile extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+        Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
         Text(item.mediaType.toUpperCase(),
-            style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+            style: TextStyle(fontSize: 10, color: CupertinoColors.systemGrey.withValues(alpha: 0.8))),
       ]),
     );
   }
@@ -73,26 +74,26 @@ class _WatchLaterButtonState extends State<_WatchLaterButton> {
   @override
   Widget build(BuildContext context) {
     final isSaved = LibraryService.instance.isInWatchLater(widget.item);
-    return Material(
-      color: Colors.black.withValues(alpha: 0.45),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          if (isSaved) {
-            LibraryService.instance.removeFromWatchLater(widget.item);
-          } else {
-            LibraryService.instance.addToWatchLater(widget.item);
-          }
-          setState(() {});
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(6.0),
-          child: Icon(isSaved ? Icons.check : Icons.add, size: 18, color: Colors.white),
+    return GestureDetector(
+      onTap: () {
+        if (isSaved) {
+          LibraryService.instance.removeFromWatchLater(widget.item);
+        } else {
+          LibraryService.instance.addToWatchLater(widget.item);
+        }
+        setState(() {});
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: CupertinoColors.black.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(20),
         ),
+        padding: const EdgeInsets.all(6.0),
+        child: Icon(isSaved ? CupertinoIcons.check_mark : CupertinoIcons.add, size: 18, color: CupertinoColors.white),
       ),
     );
   }
 }
+
 
 

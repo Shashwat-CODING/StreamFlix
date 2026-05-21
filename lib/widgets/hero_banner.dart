@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/media_item.dart';
 
 class HeroBanner extends StatefulWidget {
@@ -46,6 +47,7 @@ class _HeroBannerState extends State<HeroBanner> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
     if (widget.items.isEmpty) return const SizedBox(height: 500);
     return SizedBox(
       height: 550,
@@ -76,8 +78,8 @@ class _HeroBannerState extends State<HeroBanner> {
                     height: 6,
                     decoration: BoxDecoration(
                       color: i == _current
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.white.withValues(alpha: 0.5),
+                          ? theme.primaryColor
+                          : CupertinoColors.white.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -109,28 +111,28 @@ class _HeroPage extends StatelessWidget {
                   CachedNetworkImage(
                     imageUrl: item.fullBackdropUrl,
                     fit: BoxFit.cover,
-                    placeholder: (_, _) => Container(color: Colors.black),
-                    errorWidget: (_, _, _) => Container(color: Colors.black),
+                    placeholder: (_, _) => Container(color: CupertinoColors.black),
+                    errorWidget: (_, _, _) => Container(color: CupertinoColors.black),
                   ),
-                  DecoratedBox(
+                  const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        stops: const [0.0, 0.3, 0.6, 0.8, 1.0],
+                        stops: [0.0, 0.3, 0.6, 0.8, 1.0],
                         colors: [
-                          Colors.transparent,
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.3),
-                          Colors.black.withValues(alpha: 0.8),
-                          Colors.black,
+                          CupertinoColors.transparent,
+                          CupertinoColors.transparent,
+                          Color(0x4D000000),
+                          Color(0xCC000000),
+                          CupertinoColors.black,
                         ],
                       ),
                     ),
                   ),
                 ],
               )
-            : Container(color: Colors.black),
+            : Container(color: CupertinoColors.black),
 
         // Content
         Positioned(
@@ -151,13 +153,13 @@ class _HeroPage extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
+                      color: CupertinoTheme.of(context).primaryColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
                       'S',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: CupertinoColors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
@@ -166,8 +168,8 @@ class _HeroPage extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     item.mediaType == 'tv' ? 'S E R I E S' : 'F I L M',
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: GoogleFonts.outfit(
+                      color: CupertinoColors.white.withValues(alpha: 0.7),
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
@@ -181,12 +183,12 @@ class _HeroPage extends StatelessWidget {
                 child: Text(
                   item.title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: GoogleFonts.outfit(
+                    color: CupertinoColors.white,
                     fontSize: 34,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -1,
-                    shadows: [Shadow(blurRadius: 20, color: Colors.black)],
+                    shadows: [const Shadow(blurRadius: 20, color: CupertinoColors.black)],
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -196,7 +198,7 @@ class _HeroPage extends StatelessWidget {
               const Text(
                 'Exciting • Thriller • Action',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: CupertinoColors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -206,13 +208,13 @@ class _HeroPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _VerticalIconButton(
-                    icon: Icons.add,
+                    icon: CupertinoIcons.add,
                     label: 'My List',
                     onTap: () {},
                   ),
                   _HeroPlayButton(onTap: () => onTap()),
                   _VerticalIconButton(
-                    icon: Icons.info_outline,
+                    icon: CupertinoIcons.info,
                     label: 'Info',
                     onTap: () => onTap(),
                   ),
@@ -243,12 +245,12 @@ class _VerticalIconButton extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 28),
+          Icon(icon, color: CupertinoColors.white, size: 28),
           const SizedBox(height: 4),
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: CupertinoColors.white,
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -265,17 +267,27 @@ class _HeroPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
+    return CupertinoButton(
+      color: CupertinoColors.white,
       onPressed: onTap,
-      icon: const Icon(Icons.play_arrow_rounded, size: 24),
-      label: const Text(
-        'Play Now',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-        ),
+      borderRadius: BorderRadius.circular(8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(CupertinoIcons.play_arrow_solid, color: CupertinoColors.black, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            'Play Now',
+            style: GoogleFonts.outfit(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: CupertinoColors.black,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+

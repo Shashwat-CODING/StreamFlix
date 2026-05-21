@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:dio/dio.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,9 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/api_models.dart';
 import '../models/media_item.dart';
 import '../models/download_item.dart';
-import 'package:media_store_plus/media_store_plus.dart';
 import 'api_service.dart';
-import 'permission_service.dart';
 
 class StreamingService {
   StreamingService._();
@@ -24,12 +22,13 @@ class StreamingService {
 
   void _logInfo(String msg) => debugPrint('ℹ️ [Download INFO]: $msg');
 
-  Stream<List<StreamSource>> getSources(String mediaType, int tmdbId, {int? season, int? episode}) async* {
+  Stream<List<StreamSource>> getSources(String mediaType, int tmdbId, {int? season, int? episode, Map<String, dynamic>? extras}) async* {
     if (!ApiService.instance.isConfigured) {
       yield [];
       return;
     }
     _logInfo('Finding sources for $mediaType ($tmdbId)...');
+    
     final query = (mediaType == 'tv' && season != null && episode != null)
         ? '&season=$season&episode=$episode'
         : '';
@@ -135,12 +134,11 @@ class StreamingService {
     final query = (mediaType == 'tv' && season != null && episode != null)
         ? '&season=$season&episode=$episode'
         : '';
-    final url = '${ApiService.instance.downloadBase}/$mediaType?id=$tmdbId$query';
+    final path = '/api/download/$mediaType?id=$tmdbId$query';
     
     try {
-      _logReq(url);
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 60));
-      _logRes(url, res.statusCode);
+      final res = await ApiService.instance.rawGet(path, timeout: const Duration(seconds: 60));
+      _logRes(path, res.statusCode);
       if (res.statusCode != 200) return [];
 
       final dynamic decoded = jsonDecode(res.body);
@@ -162,7 +160,7 @@ class StreamingService {
         );
       }).where((s) => s.url.isNotEmpty).toList();
     } catch (e) {
-      _logErr(url, e);
+      _logErr(path, e);
     }
     return [];
   }
@@ -170,11 +168,10 @@ class StreamingService {
   Future<List<Subtitle>> fetchSubtitles(String mediaType, int tmdbId, {int? season, int? episode}) async {
     if (!ApiService.instance.isConfigured) return [];
     final query = (mediaType == 'tv' && season != null && episode != null) ? '&s=$season&e=$episode' : '';
-    final url = '${ApiService.instance.streamingBase}/11/$mediaType?id=$tmdbId$query';
-    _logReq(url);
+    final path = '/api/media/11/$mediaType?id=$tmdbId$query';
     try {
-      final res = await http.get(Uri.parse(url));
-      _logRes(url, res.statusCode);
+      final res = await ApiService.instance.rawGet(path);
+      _logRes(path, res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success'] == true && data['subtitles'] != null) {
@@ -182,7 +179,7 @@ class StreamingService {
         }
       }
     } catch (e) {
-      _logErr(url, e);
+      _logErr(path, e);
     }
     return [];
   }
@@ -197,7 +194,7 @@ class StreamingService {
   static ValueNotifier<int> listChanged = ValueNotifier(0);
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  final _mediaStore = MediaStore();
+
   bool _isNotifInitialized = false;
 
   Future<void> _initNotifications() async {
@@ -205,16 +202,24 @@ class StreamingService {
     try {
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
+      const DarwinInitializationSettings initializationSettingsDarwin =
+          DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
       const InitializationSettings initializationSettings = InitializationSettings(
         android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+        macOS: initializationSettingsDarwin,
         linux: LinuxInitializationSettings(defaultActionName: 'Open'),
       );
-      await _notificationsPlugin.initialize(initializationSettings);
+      await _notificationsPlugin.initialize(settings: initializationSettings);
       
       // Create notification channel for Android O+
       if (Platform.isAndroid) {
         const AndroidNotificationChannel channel = AndroidNotificationChannel(
-          'drishya_downloads', // id
+          'luxa_downloads', // id
           'Downloads', // title
           description: 'Notifications for download progress', // description
           importance: Importance.low,
@@ -238,7 +243,6 @@ class StreamingService {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('saved_downloads');
     List<DownloadItem> localItems = [];
-    bool restoredFromExternal = false;
 
     if (saved != null) {
       try {
@@ -249,52 +253,9 @@ class StreamingService {
       }
     }
 
-    // -- EXTERNAL METADATA RESTORE (Persistent Backup) --
-    if (Platform.isAndroid) {
-      try {
-        final List<String> searchPaths = [
-          '/storage/emulated/0/Download/Drishya',
-          '/storage/emulated/0/Download',
-          '/sdcard/Download/Drishya',
-        ];
-
-        final List<File> FoundMetaFiles = [];
-        for (final path in searchPaths) {
-          final dir = Directory(path);
-          if (await dir.exists()) {
-             final List<FileSystemEntity> entities = dir.listSync();
-             for (final e in entities) {
-               if (e is File && e.path.toLowerCase().contains('metadata') && e.path.toLowerCase().endsWith('.json')) {
-                 FoundMetaFiles.add(e);
-               }
-             }
-          }
-        }
-
-        if (FoundMetaFiles.isNotEmpty) {
-          FoundMetaFiles.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-          final Map<String, DownloadItem> merged = {};
-          for (final file in FoundMetaFiles.reversed) {
-            try {
-              final content = await file.readAsString();
-              final List decoded = jsonDecode(content);
-              final List<DownloadItem> items = decoded.map((e) => DownloadItem.fromJson(e)).toList();
-              for (var i in items) merged[i.id] = i;
-              restoredFromExternal = true;
-            } catch (e) { _logErr("Failed to read ${file.path}", e); }
-          }
-          for (var i in localItems) merged[i.id] = i;
-          localItems = merged.values.toList();
-          _logInfo("Restored ${localItems.length} downloads from ${FoundMetaFiles.length} external metadata files.");
-        }
-      } catch (e) { _logErr("Metadata Restore", e); }
-    }
-
     // Filter to only items that actually exist on disk (validate storage)
     final List<DownloadItem> verifiedItems = [];
     for (var item in localItems) {
-       // Since the app might be reinstalled, absolute paths in 'savedPath' might be invalid
-       // if they were internal. But for backups, they SHOULD be in public storage.
        if (await File(item.savedPath).exists()) {
           verifiedItems.add(item);
        } else {
@@ -303,12 +264,7 @@ class StreamingService {
     }
     
     _downloads = verifiedItems;
-    
-    // Safety check: Only save if we actually have data or if we successfully restored from external.
-    // This prevents overwriting a hidden/unreadable external backup with an empty local state.
-    if (_downloads.isNotEmpty || restoredFromExternal) {
-      await _saveDownloads(); 
-    }
+    await _saveDownloads(); 
   }
 
   Future<void> _saveDownloads() async {
@@ -317,25 +273,6 @@ class StreamingService {
     final encoded = jsonEncode(jsonList);
     
     await prefs.setString('saved_downloads', encoded);
-
-    // Save to External Storage Metadata (Sync)
-    if (Platform.isAndroid) {
-      try {
-        final internalDir = await getApplicationSupportDirectory();
-        final tempMetaFile = File('${internalDir.path}/metadata.json');
-        await tempMetaFile.writeAsString(encoded);
-        
-        // Save to public Download folder using MediaStore
-        await _mediaStore.saveFile(
-          tempFilePath: tempMetaFile.path,
-          dirType: DirType.download,
-          dirName: DirName.download,
-        );
-      } catch (e) {
-        _logErr("Metadata Sync Save", e);
-      }
-    }
-    
     listChanged.value++;
   }
 
@@ -349,18 +286,9 @@ class StreamingService {
     _logInfo("Starting download process for ${item.title}...");
     if (sources.isEmpty) throw Exception('No sources available for download.');
     
-    if (Platform.isAndroid) {
-      await PermissionService.requestAll();
-    }
+    final Directory baseDir = await getApplicationDocumentsDirectory();
+    final Directory downloadDir = Directory('${baseDir.path}/downloads');
 
-    final Directory downloadDir;
-    if (Platform.isAndroid) {
-      final internalDir = await getApplicationSupportDirectory();
-      downloadDir = Directory('${internalDir.path}/downloads');
-    } else {
-      final dir = await getDownloadsDirectory();
-      downloadDir = dir ?? await getApplicationSupportDirectory();
-    }
 
     if (!await downloadDir.exists()) {
       await downloadDir.create(recursive: true);
@@ -431,12 +359,12 @@ class StreamingService {
       }
 
       _notificationsPlugin.show(
-        item.id.hashCode,
-        'Drishya: ${item.mediaItem.title}',
-        body,
-        NotificationDetails(
+        id: item.id.hashCode,
+        title: 'Luxa: ${item.mediaItem.title}',
+        body: body,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            'drishya_downloads',
+            'luxa_downloads',
             'Downloads',
             channelDescription: 'Notifications for download progress',
             importance: Importance.low,
@@ -511,32 +439,6 @@ class StreamingService {
       item.status = DownloadStatus.completed;
       item.downloadedBytes = item.totalBytes;
       _logInfo("Download complete for ${item.mediaItem.title}.");
-      
-      // Save to public storage (Android Only)
-      if (Platform.isAndroid) {
-        try {
-          _logInfo("Saving to Android MediaStore...");
-          final String fileName = item.savedPath.split('/').last;
-          final SaveInfo? saveInfo = await _mediaStore.saveFile(
-            tempFilePath: item.savedPath,
-            dirType: DirType.video,
-            dirName: DirName.movies,
-          );
-          
-          if (saveInfo != null) {
-            _logInfo("Saved to public MediaStore successfully: ${saveInfo.name}");
-            final publicPath = "/storage/emulated/0/Movies/Drishya/$fileName";
-            final tempFile = File(item.savedPath);
-            
-            item.savedPath = publicPath;
-            if (await tempFile.exists()) {
-              await tempFile.delete(); // Cleanup internal storage
-            }
-          }
-        } catch (e) {
-          _logErr("MediaStore Save", e);
-        }
-      }
 
       await _saveDownloads();
       listChanged.value++;
@@ -594,3 +496,4 @@ class StreamingService {
     }
   }
 }
+

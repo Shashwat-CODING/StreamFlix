@@ -30,6 +30,22 @@ class DownloadItem {
   });
 
   double get progress => totalBytes > 0 ? downloadedBytes / totalBytes : 0.0;
+  
+  String get filePath => savedPath;
+
+  String get sizeText {
+    if (totalBytes <= 0) return 'Unknown size';
+    final gb = totalBytes / (1024 * 1024 * 1024);
+    if (gb >= 1) return '${gb.toStringAsFixed(2)} GB';
+    return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String get speedText {
+    // This is a placeholder since we don't track time here, 
+    // but we can return the percentage or similar if needed.
+    // Ideally the downloader service should provide this.
+    return '${(progress * 100).toStringAsFixed(1)}%';
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -63,3 +79,4 @@ class DownloadItem {
     );
   }
 }
+

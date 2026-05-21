@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/media_item.dart';
 import 'shimmer_placeholder.dart';
 
@@ -50,7 +51,7 @@ class MediaCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     stops: const [0.5, 1.0],
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.9)],
+                    colors: [CupertinoColors.transparent, CupertinoColors.black.withValues(alpha: 0.9)],
                   ),
                 ),
               ),
@@ -70,27 +71,27 @@ class MediaCard extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(
-                        Icons.star_rounded,
-                        color: Colors.amber,
-                        size: 12,
+                        CupertinoIcons.star_fill,
+                        color: Color(0xFFFFC107),
+                        size: 10,
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 4),
                       Text(
                         item.ratingStr,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: CupertinoColors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                 ],
                 Text(
                   item.title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: GoogleFonts.outfit(
+                    color: CupertinoColors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     height: 1.1,
@@ -110,12 +111,11 @@ class MediaCard extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: Colors.grey.shade900,
-      child: const Icon(Icons.movie, color: Colors.white24, size: 32),
+      color: const Color(0xFF1C1C1E),
+      child: const Icon(CupertinoIcons.film, color: Color(0x3DFFFFFF), size: 32),
     );
   }
 }
-
 
 class CategoryRow extends StatelessWidget {
   final String title;
@@ -133,6 +133,10 @@ class CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -143,14 +147,16 @@ class CategoryRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: onSurface,
+                ),
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 14,
+              const Icon(
+                CupertinoIcons.chevron_forward,
+                color: CupertinoColors.systemGrey,
+                size: 16,
               ),
             ],
           ),
@@ -183,3 +189,4 @@ class CategoryRow extends StatelessWidget {
     );
   }
 }
+

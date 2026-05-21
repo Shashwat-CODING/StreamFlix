@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 
-/// GlassCard is now a simple M3 Card wrapper.
-/// The glass effect has been removed in favor of Material 3 design.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -24,22 +23,33 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      color: color ?? cs.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          width: width,
-          height: height,
-          padding: padding,
-          child: child,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            width: width,
+            height: height,
+            padding: padding,
+            decoration: BoxDecoration(
+              color: color ?? (isDark 
+                  ? CupertinoColors.white.withValues(alpha: 0.1) 
+                  : CupertinoColors.black.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(
+                color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.1),
+                width: 0.5,
+              ),
+            ),
+            child: child,
+          ),
         ),
       ),
     );
   }
 }
+

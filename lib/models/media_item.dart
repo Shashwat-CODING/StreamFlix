@@ -11,6 +11,9 @@ class MediaItem {
   final String? extraInfo;
   final int? position; // Playback position in ms
   final int? duration; // Total duration in ms
+  final String? artist;
+  final String? artUri;
+  final Map<String, dynamic>? extras;
 
   MediaItem({
     required this.id,
@@ -25,6 +28,9 @@ class MediaItem {
     this.extraInfo,
     this.position,
     this.duration,
+    this.artist,
+    this.artUri,
+    this.extras,
   });
 
   factory MediaItem.fromMovieJson(Map<String, dynamic> json) {
@@ -66,15 +72,18 @@ class MediaItem {
       id: json['id'] ?? 0,
       title: json['title'] ?? 'Unknown',
       overview: json['overview'],
-      posterPath: json['poster_path'],
-      backdropPath: json['backdrop_path'],
-      voteAverage: (json['vote_average'] ?? 0.0).toDouble(),
-      releaseDate: json['release_date'],
-      genreIds: List<int>.from(json['genre_ids'] ?? []),
-      mediaType: json['media_type'] ?? 'movie',
-      extraInfo: json['extra_info'],
+      posterPath: json['poster_path'] ?? json['posterPath'],
+      backdropPath: json['backdrop_path'] ?? json['backdropPath'],
+      voteAverage: (json['vote_average'] ?? json['voteAverage'] ?? 0.0).toDouble(),
+      releaseDate: json['release_date'] ?? json['releaseDate'],
+      genreIds: List<int>.from(json['genre_ids'] ?? json['genreIds'] ?? []),
+      mediaType: json['media_type'] ?? json['mediaType'] ?? 'movie',
+      extraInfo: json['extra_info'] ?? json['extraInfo'],
       position: json['position'],
       duration: json['duration'],
+      artist: json['artist'],
+      artUri: json['art_uri'] ?? json['artUri'],
+      extras: json['extras'],
     );
   }
 
@@ -84,24 +93,42 @@ class MediaItem {
       'title': title,
       'overview': overview,
       'poster_path': posterPath,
+      'posterPath': posterPath,
       'backdrop_path': backdropPath,
+      'backdropPath': backdropPath,
       'vote_average': voteAverage,
+      'voteAverage': voteAverage,
       'release_date': releaseDate,
+      'releaseDate': releaseDate,
       'genre_ids': genreIds,
+      'genreIds': genreIds,
       'media_type': mediaType,
+      'mediaType': mediaType,
       'extra_info': extraInfo,
+      'extraInfo': extraInfo,
       'position': position,
       'duration': duration,
+      'artist': artist,
+      'art_uri': artUri,
+      'artUri': artUri,
+      'extras': extras,
+      'timestamp': DateTime.now().toIso8601String(),
     };
   }
 
   String get fullPosterUrl {
     if (posterPath == null) return '';
+    if (posterPath!.startsWith('http') || posterPath!.startsWith('//')) {
+      return posterPath!.startsWith('//') ? 'https:$posterPath' : posterPath!;
+    }
     return 'https://image.tmdb.org/t/p/w500$posterPath';
   }
 
   String get fullBackdropUrl {
     if (backdropPath == null) return '';
+    if (backdropPath!.startsWith('http') || backdropPath!.startsWith('//')) {
+      return backdropPath!.startsWith('//') ? 'https:$backdropPath' : backdropPath!;
+    }
     return 'https://image.tmdb.org/t/p/w1280$backdropPath';
   }
 
@@ -190,6 +217,9 @@ class MediaDetail extends MediaItem {
     this.numberOfEpisodes,
     this.cast = const [],
     this.seasons = const [],
+    super.artist,
+    super.artUri,
+    super.extras,
   });
 
   factory MediaDetail.fromMovieDetailJson(Map<String, dynamic> json) {
@@ -303,26 +333,29 @@ class MediaDetail extends MediaItem {
       id: json['id'] ?? 0,
       title: json['title'] ?? 'Unknown',
       overview: json['overview'],
-      posterPath: json['poster_path'],
-      backdropPath: json['backdrop_path'],
-      voteAverage: (json['vote_average'] ?? 0.0).toDouble(),
-      releaseDate: json['release_date'],
-      genreIds: List<int>.from(json['genre_ids'] ?? []),
-      mediaType: json['media_type'] ?? 'movie',
-      extraInfo: json['extra_info'],
+      posterPath: json['poster_path'] ?? json['posterPath'],
+      backdropPath: json['backdrop_path'] ?? json['backdropPath'],
+      voteAverage: (json['vote_average'] ?? json['voteAverage'] ?? 0.0).toDouble(),
+      releaseDate: json['release_date'] ?? json['releaseDate'],
+      genreIds: List<int>.from(json['genre_ids'] ?? json['genreIds'] ?? []),
+      mediaType: json['media_type'] ?? json['mediaType'] ?? 'movie',
+      extraInfo: json['extra_info'] ?? json['extraInfo'],
       genres: List<String>.from(json['genres'] ?? []),
       runtime: json['runtime'],
       tagline: json['tagline'],
       status: json['status'],
       budget: json['budget'],
       revenue: json['revenue'],
-      productionCompanies: List<String>.from(json['production_companies'] ?? []),
-      productionCountries: List<String>.from(json['production_countries'] ?? []),
+      productionCompanies: List<String>.from(json['production_companies'] ?? json['productionCompanies'] ?? []),
+      productionCountries: List<String>.from(json['production_countries'] ?? json['productionCountries'] ?? []),
       homepage: json['homepage'],
-      numberOfSeasons: json['number_of_seasons'],
-      numberOfEpisodes: json['number_of_episodes'],
+      numberOfSeasons: json['number_of_seasons'] ?? json['numberOfSeasons'],
+      numberOfEpisodes: json['number_of_episodes'] ?? json['numberOfEpisodes'],
       cast: (json['cast'] as List?)?.map((c) => Cast.fromJson(c)).toList() ?? [],
       seasons: (json['seasons'] as List?)?.map((s) => TvSeason.fromJson(s)).toList() ?? [],
+      artist: json['artist'],
+      artUri: json['art_uri'] ?? json['artUri'],
+      extras: json['extras'],
     );
   }
 }
@@ -409,6 +442,7 @@ class TvEpisode {
   final int seasonNumber;
   final double voteAverage;
   final DateTime? airDate;
+  final Map<String, dynamic>? extras;
 
   TvEpisode({
     required this.id,
@@ -419,6 +453,7 @@ class TvEpisode {
     required this.seasonNumber,
     required this.voteAverage,
     this.airDate,
+    this.extras,
   });
 
   factory TvEpisode.fromJson(Map<String, dynamic> json) {
@@ -436,11 +471,16 @@ class TvEpisode {
       seasonNumber: json['season_number'] ?? 0,
       voteAverage: (json['vote_average'] ?? 0.0).toDouble(),
       airDate: parsedDate,
+      extras: json['extras'],
     );
   }
 
   String get fullStillUrl {
     if (stillPath == null) return '';
+    if (stillPath!.startsWith('http') || stillPath!.startsWith('//')) {
+      return stillPath!.startsWith('//') ? 'https:$stillPath' : stillPath!;
+    }
     return 'https://image.tmdb.org/t/p/w300$stillPath';
   }
 }
+

@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/media_item.dart';
 
 class FeaturedCarousel extends StatefulWidget {
@@ -87,6 +88,9 @@ class _CarouselCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -96,16 +100,14 @@ class _CarouselCard extends StatelessWidget {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.3),
+                    color: theme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 30,
                     offset: const Offset(0, 15),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
+                    color: CupertinoColors.black.withValues(alpha: 0.5),
                     blurRadius: 15,
                     offset: const Offset(0, 10),
                   ),
@@ -122,32 +124,28 @@ class _CarouselCard extends StatelessWidget {
                       imageUrl: item.fullPosterUrl,
                       fit: BoxFit.cover,
                       placeholder: (_, _) => Container(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHigh,
+                        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
                       ),
                       errorWidget: (_, _, _) => Container(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHigh,
+                        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
                       ),
                     )
                   : Container(
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
                     ),
 
               // Gradient Overlay
-              DecoratedBox(
+              const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    stops: const [0.0, 0.4, 0.7, 1.0],
+                    stops: [0.0, 0.4, 0.7, 1.0],
                     colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.1),
-                      Colors.black.withValues(alpha: 0.6),
-                      Colors.black.withValues(alpha: 0.95),
+                      CupertinoColors.transparent,
+                      Color(0x1A000000),
+                      Color(0x99000000),
+                      Color(0xF2000000),
                     ],
                   ),
                 ),
@@ -157,7 +155,7 @@ class _CarouselCard extends StatelessWidget {
               if (!isActive)
                 BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                  child: Container(color: Colors.black.withValues(alpha: 0.3)),
+                  child: Container(color: CupertinoColors.black.withValues(alpha: 0.3)),
                 ),
 
               // Content Content
@@ -178,28 +176,22 @@ class _CarouselCard extends StatelessWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primaryContainer,
+                                  color: theme.primaryColor.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.star_rounded,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onPrimaryContainer,
+                                      CupertinoIcons.star_fill,
+                                      color: theme.primaryColor,
                                       size: 14,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
                                       item.ratingStr,
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimaryContainer,
+                                      style: GoogleFonts.outfit(
+                                        color: CupertinoColors.white,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -210,8 +202,8 @@ class _CarouselCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               Text(
                                 item.year,
-                                style: const TextStyle(
-                                  color: Colors.white70,
+                                style: GoogleFonts.outfit(
+                                  color: CupertinoColors.white.withValues(alpha: 0.7),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -226,8 +218,8 @@ class _CarouselCard extends StatelessWidget {
 
                       Text(
                             item.title,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: GoogleFonts.outfit(
+                              color: CupertinoColors.white,
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.5,
@@ -245,30 +237,35 @@ class _CarouselCard extends StatelessWidget {
                       Row(
                             children: [
                               Expanded(
-                                child: FilledButton.icon(
+                                child: CupertinoButton(
+                                  padding: EdgeInsets.zero,
+                                  color: theme.primaryColor,
+                                  borderRadius: BorderRadius.circular(12),
                                   onPressed: onTap,
-                                  icon: const Icon(
-                                    Icons.play_arrow_rounded,
-                                    size: 24,
-                                  ),
-                                  label: const Text(
-                                    'Watch Now',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(CupertinoIcons.play_fill, size: 20),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Watch Now',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              FilledButton.tonalIcon(
+                              CupertinoButton(
+                                padding: const EdgeInsets.all(12),
+                                color: CupertinoColors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
                                 onPressed: () {},
-                                icon: const Icon(Icons.add_rounded, size: 24),
-                                label: const Text(''),
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.all(12),
-                                ),
+                                child: const Icon(CupertinoIcons.add, size: 24, color: CupertinoColors.white),
                               ),
                             ],
                           )
@@ -285,3 +282,4 @@ class _CarouselCard extends StatelessWidget {
     );
   }
 }
+

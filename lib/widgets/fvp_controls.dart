@@ -1,14 +1,20 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons, Colors, Slider, CircularProgressIndicator, Theme, Brightness, SliderTheme, SliderThemeData, RoundSliderThumbShape, RoundSliderOverlayShape, Material, MaterialType;
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 
 class FvpCustomControls extends StatefulWidget {
   final VideoPlayerController controller;
   final VoidCallback onFullscreenToggle;
   final VoidCallback? onShowSettings;
   final Widget? topBar;
+  final String? mediaId;
+  final String? mediaType;
 
   const FvpCustomControls({
     super.key,
@@ -16,6 +22,8 @@ class FvpCustomControls extends StatefulWidget {
     required this.onFullscreenToggle,
     this.onShowSettings,
     this.topBar,
+    this.mediaId,
+    this.mediaType,
   });
 
   @override
@@ -26,18 +34,24 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
   bool _showControls = true;
   Timer? _hideTimer;
   bool _isDragging = false;
+  double _latestVolume = 1.0;
+  final TransformationController _transformationController = TransformationController();
+  bool _isZoomedToFill = false;
 
   @override
   void initState() {
     super.initState();
     _startHideTimer();
     widget.controller.addListener(_videoListener);
+    _latestVolume = widget.controller.value.volume;
+
   }
 
   @override
   void dispose() {
     _hideTimer?.cancel();
     widget.controller.removeListener(_videoListener);
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -47,11 +61,19 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
 
   void _startHideTimer() {
     _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 3), () {
+    _hideTimer = Timer(const Duration(seconds: 4), () {
       if (mounted && widget.controller.value.isPlaying && !_isDragging) {
         setState(() => _showControls = false);
       }
     });
+  }
+
+  void _cancelAndRestartTimer() {
+    _hideTimer?.cancel();
+    setState(() {
+      _showControls = true;
+    });
+    _startHideTimer();
   }
 
   void _toggleControls() {
@@ -63,9 +85,46 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
     if (widget.controller.value.isPlaying) {
       widget.controller.pause();
     } else {
+      if (widget.controller.value.position >= widget.controller.value.duration) {
+        widget.controller.seekTo(Duration.zero);
+      }
       widget.controller.play();
     }
-    _startHideTimer();
+    _cancelAndRestartTimer();
+  }
+
+  void _skipBack() {
+    final pos = widget.controller.value.position;
+    final newPos = pos - const Duration(seconds: 15);
+    widget.controller.seekTo(newPos);
+    _cancelAndRestartTimer();
+  }
+
+  void _skipForward() {
+    final pos = widget.controller.value.position;
+    final newPos = pos + const Duration(seconds: 15);
+    widget.controller.seekTo(newPos);
+    _cancelAndRestartTimer();
+  }
+
+  void _toggleMute() {
+    if (widget.controller.value.volume == 0) {
+      widget.controller.setVolume(_latestVolume > 0 ? _latestVolume : 1.0);
+    } else {
+      _latestVolume = widget.controller.value.volume;
+      widget.controller.setVolume(0.0);
+    }
+    _cancelAndRestartTimer();
+  }
+
+  void _toggleZoomFill() {
+    setState(() {
+      _isZoomedToFill = !_isZoomedToFill;
+      if (!_isZoomedToFill) {
+        _transformationController.value = Matrix4.identity();
+      }
+    });
+    _cancelAndRestartTimer();
   }
 
   String _formatDuration(Duration d) {
@@ -80,323 +139,293 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _toggleControls,
-      behavior: HitTestBehavior.opaque,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background Video
-          Center(
-            child: AspectRatio(
-              aspectRatio: widget.controller.value.aspectRatio > 0
-                  ? widget.controller.value.aspectRatio
-                  : 16 / 9,
-              child: VideoPlayer(widget.controller),
-            ),
-          ),
-          
-          // Buffering Indicator
-          if (widget.controller.value.isBuffering)
-            const Center(
-              child: CircularProgressIndicator(
-                color: Colors.red,
-                strokeWidth: 3,
+    final bool isFinished = widget.controller.value.position >= widget.controller.value.duration && widget.controller.value.duration.inSeconds > 0;
+    
+    return MouseRegion(
+      onHover: (_) => _cancelAndRestartTimer(),
+      child: GestureDetector(
+        onTap: _toggleControls,
+        onDoubleTap: _toggleZoomFill,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Video Layer
+            Center(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final videoRatio = widget.controller.value.aspectRatio > 0 ? widget.controller.value.aspectRatio : 16/9;
+                  final containerRatio = constraints.maxWidth / constraints.maxHeight;
+                  
+                  // Calculate scale to fill screen if zoomed
+                  double fillScale = 1.0;
+                  if (_isZoomedToFill) {
+                    if (videoRatio > containerRatio) {
+                      fillScale = videoRatio / containerRatio;
+                    } else {
+                      fillScale = containerRatio / videoRatio;
+                    }
+                  }
+
+                  return InteractiveViewer(
+                    transformationController: _transformationController,
+                    minScale: 1.0,
+                    maxScale: 5.0,
+                    child: Transform.scale(
+                      scale: fillScale,
+                      child: AspectRatio(
+                        aspectRatio: videoRatio,
+                        child: VideoPlayer(widget.controller),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          
-          if (_showControls) ...[
-            // Overlay gradient for better visibility
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.6),
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
+            
+            // Buffering Indicator
+            if (widget.controller.value.isBuffering)
+              const Center(
+                child: CupertinoActivityIndicator(radius: 20, color: CupertinoColors.white),
+              ),
+            
+            // Hit Area Center Play Button
+            if (_showControls && (!widget.controller.value.isPlaying || isFinished))
+              Center(
+                child: GestureDetector(
+                  onTap: _playPause,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.black.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: CupertinoColors.white.withValues(alpha: 0.1), width: 0.5),
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        child: Icon(
+                          isFinished ? Icons.replay : (widget.controller.value.isPlaying ? Icons.pause : Icons.play_arrow),
+                          color: CupertinoColors.white,
+                          size: 48,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Controls Overlay
+            IgnorePointer(
+              ignoring: !_showControls,
+              child: AnimatedOpacity(
+                opacity: _showControls ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        CupertinoColors.black.withValues(alpha: 0.6),
+                        CupertinoColors.transparent,
+                        CupertinoColors.transparent,
+                        CupertinoColors.black.withValues(alpha: 0.6),
+                      ],
+                      stops: const [0.0, 0.2, 0.8, 1.0],
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Top Bar
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                if (widget.topBar != null) Expanded(child: widget.topBar!),
+                                const Spacer(),
+                                _buildTopBarButton(
+                                  icon: _isZoomedToFill ? CupertinoIcons.zoom_out : CupertinoIcons.zoom_in,
+                                  onPressed: _toggleZoomFill,
+                                ),
+                                const SizedBox(width: 8),
+                                _buildTopBarButton(
+                                  icon: widget.controller.value.volume > 0 ? CupertinoIcons.volume_up : CupertinoIcons.volume_off,
+                                  onPressed: _toggleMute,
+                                ),
+                                const SizedBox(width: 8),
+                                _buildTopBarButton(
+                                  icon: CupertinoIcons.fullscreen,
+                                  onPressed: widget.onFullscreenToggle,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Bottom Bar
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Integrated Progress Bar
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: CupertinoVideoProgressBar(
+                                    controller: widget.controller,
+                                    onDragStart: () {
+                                      setState(() => _isDragging = true);
+                                      _hideTimer?.cancel();
+                                    },
+                                    onDragEnd: () {
+                                      setState(() => _isDragging = false);
+                                      _startHideTimer();
+                                    },
+                                    onSeek: null,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    _buildControlIcon(
+                                      icon: CupertinoIcons.gobackward_15,
+                                      onPressed: _skipBack,
+                                    ),
+                                    _buildControlIcon(
+                                      icon: widget.controller.value.isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
+                                      onPressed: _playPause,
+                                      size: 32,
+                                    ),
+                                    _buildControlIcon(
+                                      icon: CupertinoIcons.goforward_15,
+                                      onPressed: _skipForward,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      _formatDuration(widget.controller.value.position),
+                                      style: GoogleFonts.outfit(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      ' / ${_formatDuration(widget.controller.value.duration)}',
+                                      style: GoogleFonts.outfit(color: CupertinoColors.white.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500),
+                                    ),
+                                    const Spacer(),
+                                    _buildControlIcon(
+                                      icon: Icons.settings,
+                                      onPressed: () {
+                                        if (widget.onShowSettings != null) widget.onShowSettings!();
+                                      },
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            
-            // Top Bar
-            if (widget.topBar != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(child: widget.topBar!),
-              ),
-              
-            // Center Controls
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _IconButton(
-                    icon: CupertinoIcons.gobackward_10,
-                    size: 28,
-                    onPressed: () {
-                      final pos = widget.controller.value.position;
-                      widget.controller.seekTo(pos - const Duration(seconds: 10));
-                      _startHideTimer();
-                    },
-                  ),
-                  const SizedBox(width: 48),
-                  _IconButton(
-                    icon: widget.controller.value.isPlaying
-                        ? CupertinoIcons.pause_fill
-                        : CupertinoIcons.play_fill,
-                    size: 48,
-                    onPressed: _playPause,
-                  ),
-                  const SizedBox(width: 48),
-                  _IconButton(
-                    icon: CupertinoIcons.goforward_10,
-                    size: 28,
-                    onPressed: () {
-                      final pos = widget.controller.value.position;
-                      widget.controller.seekTo(pos + const Duration(seconds: 10));
-                      _startHideTimer();
-                    },
-                  ),
-                ],
-              ),
-            ),
-            
-            // Bottom Bar
-            Positioned(
-              bottom: 24, // Shifted up a bit
-              left: 0,
-              right: 0,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Time & Fullscreen Row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          _formatDuration(widget.controller.value.position),
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            "|",
-                            style: TextStyle(color: Colors.white38, fontSize: 14),
-                          ),
-                        ),
-                        Text(
-                          _formatDuration(widget.controller.value.duration),
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.settings,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          onPressed: () {
-                            if (widget.onShowSettings != null) {
-                              widget.onShowSettings!();
-                            } else {
-                              _showSettings(context);
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.fullscreen,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          onPressed: widget.onFullscreenToggle,
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Progress Bar
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 4,
-                        pressedElevation: 0,
-                      ),
-                      overlayShape: SliderComponentShape.noOverlay,
-                      activeTrackColor: Colors.red,
-                      inactiveTrackColor: Colors.white12,
-                      thumbColor: Colors.red,
-                      trackShape: const _FullWidthTrackShape(),
-                    ),
-                    child: SizedBox(
-                      height: 12,
-                      child: Slider(
-                        value: widget.controller.value.position.inMilliseconds.toDouble(),
-                        min: 0.0,
-                        max: widget.controller.value.duration.inMilliseconds.toDouble() > 0
-                            ? widget.controller.value.duration.inMilliseconds.toDouble()
-                            : 1.0,
-                        onChangeStart: (_) {
-                          _isDragging = true;
-                          _hideTimer?.cancel();
-                        },
-                        onChanged: (v) {
-                          widget.controller.seekTo(Duration(milliseconds: v.toInt()));
-                        },
-                        onChangeEnd: (_) {
-                          _isDragging = false;
-                          _startHideTimer();
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
-  void _showSettings(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Playback Settings',
-              style: GoogleFonts.dmSans(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(CupertinoIcons.speedometer, color: Colors.white70),
-              title: Text('Playback Speed', style: GoogleFonts.dmSans(color: Colors.white)),
-              trailing: Text('${widget.controller.value.playbackSpeed}x', 
-                style: GoogleFonts.dmSans(color: Colors.red, fontWeight: FontWeight.bold)),
-              onTap: () {
-                Navigator.pop(context);
-                _showSpeedSelector(context);
-              },
-            ),
           ],
         ),
       ),
     );
   }
 
-  void _showSpeedSelector(BuildContext context) {
-    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Select Speed',
-              style: GoogleFonts.dmSans(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...speeds.map((s) => ListTile(
-              title: Text('${s}x', 
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                  color: widget.controller.value.playbackSpeed == s ? Colors.red : Colors.white70,
-                  fontWeight: widget.controller.value.playbackSpeed == s ? FontWeight.bold : FontWeight.normal,
-                )),
-              onTap: () {
-                widget.controller.setPlaybackSpeed(s);
-                Navigator.pop(context);
-              },
-            )),
-          ],
-        ),
+  Widget _buildTopBarButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CupertinoColors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
       ),
+      child: CupertinoButton(
+        padding: const EdgeInsets.all(12),
+        onPressed: onPressed,
+        child: Icon(icon, color: CupertinoColors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildControlIcon({required IconData icon, required VoidCallback onPressed, double size = 26}) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      onPressed: onPressed,
+      child: Icon(icon, color: CupertinoColors.white, size: size),
     );
   }
 }
 
-class _IconButton extends StatelessWidget {
-  final IconData icon;
-  final double size;
-  final VoidCallback onPressed;
+class CupertinoVideoProgressBar extends StatefulWidget {
+  final VideoPlayerController controller;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
+  final Function(Duration)? onSeek;
 
-  const _IconButton({
-    required this.icon,
-    required this.size,
-    required this.onPressed,
+  const CupertinoVideoProgressBar({
+    super.key,
+    required this.controller,
+    this.onDragStart,
+    this.onDragEnd,
+    this.onSeek,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        iconSize: size,
-        icon: Icon(icon, color: Colors.white),
-        onPressed: onPressed,
-      ),
-    );
-  }
+  State<CupertinoVideoProgressBar> createState() => _CupertinoVideoProgressBarState();
 }
 
-class _FullWidthTrackShape extends RoundedRectSliderTrackShape {
-  const _FullWidthTrackShape();
+class _CupertinoVideoProgressBarState extends State<CupertinoVideoProgressBar> {
   @override
-  Rect getPreferredRect({
-    required RenderBox parentBox,
-    Offset offset = Offset.zero,
-    required SliderThemeData sliderTheme,
-    bool isEnabled = false,
-    bool isDiscrete = false,
-  }) {
-    final double trackHeight = sliderTheme.trackHeight!;
-    final double trackLeft = offset.dx;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
-    final double trackWidth = parentBox.size.width;
-    return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
+  Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final duration = widget.controller.value.duration.inMilliseconds.toDouble();
+    final position = widget.controller.value.position.inMilliseconds.toDouble();
+    
+    return Container(
+      height: 32,
+      width: double.infinity,
+      child: Material(
+        type: MaterialType.transparency,
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            activeTrackColor: theme.primaryColor,
+            inactiveTrackColor: CupertinoColors.white.withValues(alpha: 0.2),
+            thumbColor: CupertinoColors.white,
+          ),
+          child: Slider(
+            value: position.clamp(0, duration > 0 ? duration : 1),
+            min: 0.0,
+            max: duration > 0 ? duration : 1.0,
+            onChanged: (v) {
+              widget.onDragStart?.call();
+              final d = Duration(milliseconds: v.toInt());
+              widget.controller.seekTo(d);
+              widget.onSeek?.call(d);
+            },
+            onChangeEnd: (v) {
+              widget.onDragEnd?.call();
+            },
+          ),
+        ),
+      ),
+    );
   }
 }

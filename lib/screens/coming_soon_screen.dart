@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,15 +31,23 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.chevron_back),
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.primaryColor;
+    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
+
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        transitionBetweenRoutes: false,
+        backgroundColor: CupertinoColors.transparent,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.chevron_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Center(
+      child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -56,7 +63,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: cs.primary.withValues(alpha: 
+                        color: primary.withValues(alpha: 
                           0.1 + _pulseController.value * 0.2,
                         ),
                         blurRadius: 40 + _pulseController.value * 30,
@@ -64,16 +71,14 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                       ),
                     ],
                     border: Border.all(
-                      color: cs.primary.withAlpha(
-                        (40 + _pulseController.value * 60).toInt(),
-                      ),
+                      color: primary.withValues(alpha: 0.1 + _pulseController.value * 0.4),
                       width: 2,
                     ),
                   ),
                   child: Container(
                     margin: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.05),
+                      color: primary.withValues(alpha: 0.05),
                       shape: BoxShape.circle,
                     ),
                     child: child,
@@ -82,7 +87,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                 child: Center(
                   child: Icon(
                     CupertinoIcons.sparkles,
-                    color: cs.primary,
+                    color: primary,
                     size: 40,
                   ),
                 ),
@@ -93,7 +98,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
               RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
-                      style: GoogleFonts.dmSerifDisplay(
+                      style: GoogleFonts.outfit(
                         fontSize: 42,
                         letterSpacing: -1.5,
                         height: 1,
@@ -101,11 +106,11 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                       children: [
                         TextSpan(
                           text: 'Coming\n',
-                          style: TextStyle(color: cs.onSurface),
+                          style: TextStyle(color: onSurface),
                         ),
                         TextSpan(
                           text: 'Soon',
-                          style: TextStyle(color: cs.primary),
+                          style: TextStyle(color: primary),
                         ),
                       ],
                     ),
@@ -119,8 +124,8 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
               Text(
                 widget.title.toUpperCase(),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                  color: cs.onSurfaceVariant,
+                style: GoogleFonts.outfit(
+                  color: CupertinoColors.systemGrey,
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
                   letterSpacing: 2,
@@ -134,25 +139,33 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                 child: Text(
                   'We\'re preparing something special.\nStay tuned for the premiere of this content.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
+                  style: GoogleFonts.outfit(
+                    color: CupertinoColors.systemGrey,
                     height: 1.6,
+                    fontSize: 16,
                   ),
                 ),
               ).animate().fadeIn(delay: 600.ms),
 
               const SizedBox(height: 48),
 
-              FilledButton.icon(
+              CupertinoButton(
+                    color: primary,
+                    borderRadius: BorderRadius.circular(16),
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(CupertinoIcons.arrow_left, size: 18),
-                    label: const Text('Go Back'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: cs.primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(CupertinoIcons.arrow_left, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Go Back',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                   .animate()
@@ -165,3 +178,6 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
     );
   }
 }
+
+
+

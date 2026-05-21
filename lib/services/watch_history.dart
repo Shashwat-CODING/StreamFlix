@@ -1,7 +1,10 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
+
+import '../services/collection_service.dart';
+import '../services/sync_service.dart';
 
 class WatchHistory {
   static List<MediaItem> _history = [];
@@ -19,7 +22,18 @@ class WatchHistory {
         _history = decoded.map((e) => MediaItem.fromJson(e)).toList();
       }
     } catch (e) {
-      // Error loading watch history
+      debugPrint('Error loading watch history: $e');
+    }
+  }
+
+  static Future<void> restore(List<dynamic> data) async {
+    try {
+      _history = data.map((e) => MediaItem.fromJson(e)).toList();
+      await save();
+      listChanged.value++;
+      debugPrint('📥 [WATCH HISTORY] Restored ${_history.length} items.');
+    } catch (e) {
+      debugPrint('Error restoring watch history: $e');
     }
   }
 
@@ -33,16 +47,31 @@ class WatchHistory {
     }
   }
 
-  static void addItem(MediaItem item) {
+  static void addItem(MediaItem item, {int? season, int? episode}) {
     _history.removeWhere((e) => e.id == item.id);
     _history.insert(0, item);
     if (_history.length > 20) {
       _history.removeLast();
     }
+
+    // Update series progress if applicable
+    if (item.mediaType == 'tv' && season != null && episode != null) {
+      CollectionService.instance.updateProgress(item, season, episode);
+    }
+
     // FIX: Defer notification to avoid "setState() or markNeedsBuild() called during build"
     WidgetsBinding.instance.addPostFrameCallback((_) {
       listChanged.value++;
     });
     save(); // Auto-save
+    SyncService.instance.syncWatchHistory();
+  }
+
+  static void removeItem(int id) {
+    _history.removeWhere((e) => e.id == id);
+    listChanged.value++;
+    save();
+    SyncService.instance.syncWatchHistory();
   }
 }
+

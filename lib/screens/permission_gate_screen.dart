@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/permission_service.dart';
@@ -68,33 +67,8 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
       icon: CupertinoIcons.bell_fill,
     ));
 
-    if (sdk >= 33) {
-      items.add((
-        permission: Permission.photos,
-        label: 'Photos',
-        description: 'Access images on this device',
-        icon: CupertinoIcons.photo_fill,
-      ));
-      items.add((
-        permission: Permission.videos,
-        label: 'Videos',
-        description: 'Save and access downloaded videos',
-        icon: CupertinoIcons.film_fill,
-      ));
-      items.add((
-        permission: Permission.audio,
-        label: 'Audio',
-        description: 'Access audio files on this device',
-        icon: CupertinoIcons.music_note,
-      ));
-    } else {
-      items.add((
-        permission: Permission.storage,
-        label: 'Storage',
-        description: 'Save downloads to your device',
-        icon: CupertinoIcons.folder_fill,
-      ));
-    }
+    // We no longer require storage permissions as we use scoped storage
+
 
     // Background Access / Battery Optimization
     items.add((
@@ -173,15 +147,13 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
     widget.onComplete();
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: const Color(0xFF080808),
-      body: Stack(
+      child: Stack(
         children: [
           // Background glow blobs
           Positioned(
@@ -240,9 +212,9 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                   Text(
                     'App Permissions',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSerifDisplay(
+                    style: GoogleFonts.outfit(
                       fontSize: 32,
-                      color: Colors.white,
+                      color: CupertinoColors.white,
                       height: 1.1,
                     ),
                   ),
@@ -250,11 +222,11 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                   const SizedBox(height: 10),
 
                   Text(
-                    'Grant the following permissions so Drishya can save downloads and send you updates.',
+                    'Grant the following permissions so Luxa can save downloads and send you updates.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
-                      color: Colors.white54,
+                      color: CupertinoColors.white.withValues(alpha: 0.54),
                       height: 1.6,
                     ),
                   ),
@@ -263,9 +235,8 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
 
                   // Permission list
                   if (_permItems.isEmpty)
-                    const CircularProgressIndicator(
+                    const CupertinoActivityIndicator(
                       color: Color(0xFFE50914),
-                      strokeWidth: 2,
                     )
                   else
                     Column(
@@ -287,56 +258,47 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                     width: double.infinity,
                     child: _isRequesting
                         ? const Center(
-                            child: CircularProgressIndicator(
+                            child: CupertinoActivityIndicator(
                               color: Color(0xFFE50914),
-                              strokeWidth: 2.5,
                             ),
                           )
                         : _anyPermanentlyDenied
-                            ? FilledButton.icon(
+                            ? CupertinoButton(
+                                color: const Color(0xFFE57373),
+                                borderRadius: BorderRadius.circular(16),
                                 onPressed: _openAppSettings,
-                                icon: const Icon(CupertinoIcons.settings_solid, size: 20),
-                                label: const Text('Open App Settings'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE57373),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(56),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  textStyle: GoogleFonts.dmSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(CupertinoIcons.settings_solid, size: 20, color: CupertinoColors.white),
+                                    const SizedBox(width: 8),
+                                    Text('Open App Settings', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: CupertinoColors.white)),
+                                  ],
                                 ),
                               )
-                            : FilledButton.icon(
+                            : CupertinoButton(
+                                color: const Color(0xFFE50914),
+                                borderRadius: BorderRadius.circular(16),
                                 onPressed: _requestAllPermissions,
-                                icon: const Icon(CupertinoIcons.checkmark_shield_fill, size: 20),
-                                label: const Text('Grant All Permissions'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE50914),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(56),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  textStyle: GoogleFonts.dmSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(CupertinoIcons.checkmark_shield_fill, size: 20, color: CupertinoColors.white),
+                                    const SizedBox(width: 8),
+                                    Text('Grant All Permissions', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: CupertinoColors.white)),
+                                  ],
                                 ),
                               ),
                   ),
 
                   const SizedBox(height: 10),
 
-                  TextButton(
+                  CupertinoButton(
                     onPressed: _skip,
                     child: Text(
                       'Continue Without Permissions',
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white.withValues(alpha: 0.28),
+                      style: GoogleFonts.outfit(
+                        color: CupertinoColors.white.withValues(alpha: 0.28),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -383,7 +345,7 @@ class _PermissionTile extends StatelessWidget {
       indicatorColor = const Color(0xFFE57373);
       indicatorIcon = CupertinoIcons.xmark_circle_fill;
     } else {
-      indicatorColor = Colors.white24;
+      indicatorColor = CupertinoColors.white.withValues(alpha: 0.24);
       indicatorIcon = CupertinoIcons.circle;
     }
 
@@ -391,12 +353,12 @@ class _PermissionTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: CupertinoColors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: granted
               ? const Color(0xFF4CAF50).withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.07),
+              : CupertinoColors.white.withValues(alpha: 0.07),
           width: 1,
         ),
       ),
@@ -418,8 +380,8 @@ class _PermissionTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white,
+                  style: GoogleFonts.outfit(
+                    color: CupertinoColors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
@@ -427,8 +389,8 @@ class _PermissionTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: GoogleFonts.dmSans(
-                    color: Colors.white.withValues(alpha: 0.45),
+                  style: GoogleFonts.outfit(
+                    color: CupertinoColors.white.withValues(alpha: 0.45),
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -458,8 +420,11 @@ class _GlowBlob extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, Colors.transparent]),
+        gradient: RadialGradient(colors: [color, CupertinoColors.transparent]),
       ),
     );
   }
 }
+
+
+

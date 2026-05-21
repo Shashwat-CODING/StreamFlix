@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class BannerAdWidget extends StatefulWidget {
@@ -22,7 +22,9 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   void initState() {
     super.initState();
-    _loadAd();
+    if (Platform.isAndroid || Platform.isIOS) {
+      _loadAd();
+    }
   }
 
   void _loadAd() {
@@ -69,3 +71,4 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     return const SizedBox.shrink();
   }
 }
+

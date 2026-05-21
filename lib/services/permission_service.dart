@@ -32,21 +32,8 @@ class PermissionService {
       Permission.notification,
     ];
 
-    if (sdk >= 33) {
-      // API 33+ (Android 13): Granular media permissions
-      perms.addAll([
-        Permission.photos,
-        Permission.videos,
-        Permission.audio,
-      ]);
-    } else if (sdk >= 30) {
-      // API 30-32 (Android 11-12): storage permission for reading
-      perms.add(Permission.storage);
-    } else {
-      // API < 30 (Android 10 and below): full storage permission
-      perms.add(Permission.storage);
-    }
-
+    // We no longer require storage permissions as we use scoped storage (app's data directory)
+    
     // Battery optimization ignore is needed for stable background downloads
     perms.add(Permission.ignoreBatteryOptimizations);
 
@@ -102,3 +89,4 @@ class PermissionService {
   /// Open system app settings page for the app.
   static Future<void> openSettings() => openAppSettings();
 }
+

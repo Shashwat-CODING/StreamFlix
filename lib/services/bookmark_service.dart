@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
+import 'sync_service.dart';
 
 class BookmarkService {
   static List<MediaItem> _bookmarks = [];
@@ -19,7 +20,18 @@ class BookmarkService {
         _bookmarks = decoded.map((e) => MediaItem.fromJson(e)).toList();
       }
     } catch (e) {
-      // Error loading bookmarks
+      debugPrint('Error loading bookmarks: $e');
+    }
+  }
+
+  static Future<void> restore(List<dynamic> data) async {
+    try {
+      _bookmarks = data.map((e) => MediaItem.fromJson(e)).toList();
+      await save();
+      listChanged.value++;
+      debugPrint('📥 [BOOKMARKS] Restored ${_bookmarks.length} items.');
+    } catch (e) {
+      debugPrint('Error restoring bookmarks: $e');
     }
   }
 
@@ -46,5 +58,7 @@ class BookmarkService {
     }
     listChanged.value++;
     save();
+    SyncService.instance.syncBookmarks();
   }
 }
+
