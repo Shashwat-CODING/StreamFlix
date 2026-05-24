@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'dart:ui';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,12 +12,11 @@ import '../widgets/ios_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/native_ad_widget.dart';
 import '../widgets/banner_ad_widget.dart';
+import '../theme/app_theme.dart';
 
 // ── Design tokens (shared across app) ────────────────────────────────────────
 
 const _live = Color(0xFF22C55E);
-const _kRadius = 14.0;
-const _kRadiusLg = 20.0;
 const _white = CupertinoColors.white;
 
 TextStyle _font({
@@ -27,7 +26,7 @@ TextStyle _font({
   double spacing = 0,
   double height = 1.4,
 }) =>
-    GoogleFonts.outfit(
+    GoogleFonts.spaceGrotesk(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -54,6 +53,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
     if (!mounted) return;
     showCupertinoDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => CupertinoAlertDialog(
         content: Text(message),
         actions: [
@@ -330,7 +330,10 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
 
     return CupertinoSliverNavigationBar(
       transitionBetweenRoutes: false,
-      largeTitle: Text(inChannels ? _selectedTitle : 'Live TV'),
+      largeTitle: Text(
+        (inChannels ? _selectedTitle : 'Live TV').toUpperCase(),
+        style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: -1.0),
+      ),
       backgroundColor: isDark ? const Color(0xCC000000) : const Color(0xCCF2F2F7),
       border: null,
       leading: inChannels
@@ -343,7 +346,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
                 _searchCtrl.clear();
                 _subFilterCategory = null;
               }),
-              child: const Icon(CupertinoIcons.chevron_back),
+              child: const Icon(FluentIcons.chevron_left_24_regular),
             )
           : null,
       trailing: Row(
@@ -353,15 +356,15 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
             CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () => setState(() => _gridView = !_gridView),
-              child: Icon(_gridView ? CupertinoIcons.list_dash : CupertinoIcons.square_grid_2x2_fill),
+              child: Icon(_gridView ? FluentIcons.list_24_regular : FluentIcons.grid_24_filled),
             ),
             if (_browseBy == BrowsingType.country)
               CupertinoButton(
                 padding: EdgeInsets.zero,
                 onPressed: () => _setDefaultCountry(_selectedItem as CountryEntry),
                 child: Icon((_selectedItem as CountryEntry).code == _defaultCountryCode
-                    ? CupertinoIcons.pin_fill
-                    : CupertinoIcons.pin),
+                    ? FluentIcons.pin_24_filled
+                    : FluentIcons.pin_24_regular),
               ),
           ] else
             CupertinoButton(
@@ -369,7 +372,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
               onPressed: () {
                 // Focus search or something
               },
-              child: const Icon(CupertinoIcons.search),
+              child: const Icon(FluentIcons.search_24_regular),
             ),
         ],
       ),
@@ -379,12 +382,6 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
   // ── Browser View (no selection) ─────────────────────────────────────────────
 
   List<Widget> _buildBrowserView(CupertinoThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final onSurfaceVariant = isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-    final primary = theme.primaryColor;
-    final surface = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.systemBackground;
-
     return [
       SliverToBoxAdapter(
         child: Column(
@@ -410,62 +407,52 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
     final onSurfaceVariant = isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-    final primary = theme.primaryColor;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Container(
         padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
-                isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(_kRadiusLg),
-            border: Border.all(
-                color: onSurface.withValues(alpha: 0.08), width: 0.5),
-            boxShadow: [
-              BoxShadow(
-                color: CupertinoColors.black.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : AppTheme.creamBg,
+          borderRadius: 4.0,
+          shadowOffset: 4.0,
+        ),
         child: Row(
           children: [
             Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(
-                color: primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+              decoration: AppTheme.brutalistDecoration(
+                context: context,
+                color: AppTheme.neonYellow,
+                borderRadius: 4.0,
+                shadowOffset: 2.0,
               ),
-              child: Icon(CupertinoIcons.play_rectangle_fill,
-                  color: primary, size: 22),
+              child: const Icon(FluentIcons.video_clip_24_filled,
+                  color: CupertinoColors.black, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Live Channels',
-                      style: GoogleFonts.outfit(
-                          fontSize: 20, color: onSurface, letterSpacing: -0.3)),
+                  Text('LIVE CHANNELS',
+                      style: GoogleFonts.spaceGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: onSurface,
+                          letterSpacing: -0.5)),
                   const SizedBox(height: 3),
-                  Text('Browse validated IPTV streams worldwide',
+                  Text('Browse validated IPTV streams worldwide'.toUpperCase(),
                       style: _font(
-                          size: 12,
+                          size: 10,
                           color: onSurfaceVariant,
-                          weight: FontWeight.w500)),
+                          weight: FontWeight.w700)),
                 ],
               ),
             ),
-            _LiveDot(large: true),
+            const _LiveDot(large: true),
           ],
         ),
       ).animate().fadeIn(duration: 380.ms),
@@ -474,7 +461,6 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
 
   Widget _buildModeSelector(CupertinoThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
-    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
     const modes = [
       (BrowsingType.country, 'Country'),
       (BrowsingType.category, 'Category'),
@@ -483,13 +469,13 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
-        height: 48,
+        height: 52,
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: onSurface.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: onSurface.withValues(alpha: 0.07), width: 0.5),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : AppTheme.pureWhite,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         child: Row(
           children: modes
@@ -556,8 +542,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
   List<Widget> _buildChannelView(CupertinoThemeData theme) {
     final cs = theme.colorScheme;
     final onSurface = cs.onSurface;
-    final onSurfaceVariant = cs.onSurfaceVariant;
-    final primary = cs.primary;
+    final isDark = theme.brightness == Brightness.dark;
 
     return [
       // Category filter chips
@@ -575,28 +560,21 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
               final active = _subFilterCategory?.id == cat.id;
               return GestureDetector(
                 onTap: () => _toggleCategoryFilter(cat),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
+                child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? primary
-                        : onSurface.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: active
-                          ? primary
-                          : onSurface.withValues(alpha: 0.08),
-                      width: 0.5,
-                    ),
+                  decoration: AppTheme.brutalistDecoration(
+                    context: context,
+                    color: active ? AppTheme.neonYellow : (isDark ? AppTheme.darkSlate : AppTheme.pureWhite),
+                    borderRadius: 4.0,
+                    shadowOffset: active ? 2.5 : 1.5,
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    cat.name,
-                    style: _font(
-                      size: 12,
-                      weight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? CupertinoColors.white : onSurfaceVariant,
+                    cat.name.toUpperCase(),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: active ? CupertinoColors.black : onSurface,
                     ),
                   ),
                 ),
@@ -613,18 +591,34 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
           child: Row(
             children: [
               Expanded(
-                child: CupertinoSearchTextField(
-                  controller: _searchCtrl,
-                  placeholder: 'Search channels...',
-                  style: _font(size: 14, color: cs.onSurface, weight: FontWeight.w500),
-                  placeholderStyle: _font(size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-                  backgroundColor: cs.onSurface.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  onChanged: (val) => setState(() {}),
-                  onSuffixTap: () {
-                    _searchCtrl.clear();
-                    setState(() {});
-                  },
+                child: Container(
+                  decoration: AppTheme.brutalistDecoration(
+                    context: context,
+                    color: isDark ? AppTheme.darkSlate : AppTheme.pureWhite,
+                    borderRadius: 4.0,
+                    shadowOffset: 2.0,
+                  ),
+                  child: CupertinoSearchTextField(
+                    controller: _searchCtrl,
+                    placeholder: 'SEARCH CHANNELS...',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    placeholderStyle: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    backgroundColor: CupertinoColors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    onChanged: (val) => setState(() {}),
+                    onSuffixTap: () {
+                      _searchCtrl.clear();
+                      setState(() {});
+                    },
+                  ),
                 ),
               ),
 
@@ -632,20 +626,20 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
 
               // Count pill
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: cs.onSurface.withValues(alpha: 0.08), width: 0.5),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
+                  color: AppTheme.neonYellow,
+                  borderRadius: 4.0,
+                  shadowOffset: 2.0,
                 ),
                 child: Text(
                   '${_filtered.length}',
-                  style: _font(
-                      size: 13,
-                      weight: FontWeight.w700,
-                      color: cs.onSurface),
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: CupertinoColors.black,
+                  ),
                 ),
               ),
             ],
@@ -656,7 +650,7 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
       // Channel content
       if (_loadingChannels)
         const SliverFillRemaining(
-          child: Center(child: IOSLoading(message: 'Loading streams…')),
+          child: Center(child: IOSLoading(message: 'LOADING STREAMS…')),
         )
       else if (_filtered.isEmpty)
         SliverFillRemaining(
@@ -665,17 +659,17 @@ class _LiveTvScreenState extends State<LiveTvScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(CupertinoIcons.tv,
+                Icon(FluentIcons.tv_24_regular,
                     color: cs.onSurface.withValues(alpha: 0.15), size: 48),
                 const SizedBox(height: 14),
                 Text(
-                  _channels.isEmpty
+                  (_channels.isEmpty
                       ? 'No streams available'
-                      : 'No channels found',
+                      : 'No channels found').toUpperCase(),
                   style: _font(
-                      size: 15,
+                      size: 14,
                       color: cs.onSurfaceVariant,
-                      weight: FontWeight.w500),
+                      weight: FontWeight.w900),
                 ),
               ],
             ),
@@ -760,7 +754,6 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
     Widget leading;
     String label;
 
@@ -771,8 +764,8 @@ class _AppBarTitle extends StatelessWidget {
         label = (selectedItem as CountryEntry).name;
         break;
       case BrowsingType.category:
-        leading = Icon(CupertinoIcons.rectangle_grid_2x2_fill,
-            color: theme.primaryColor, size: 18);
+        leading = const Icon(FluentIcons.grid_24_filled,
+            color: CupertinoColors.black, size: 18);
         label = (selectedItem as CategoryEntry).name;
         break;
     }
@@ -784,8 +777,8 @@ class _AppBarTitle extends StatelessWidget {
         const SizedBox(width: 8),
         Flexible(
           child: Text(
-            label,
-            style: GoogleFonts.outfit(fontSize: 20, color: onSurface),
+            label.toUpperCase(),
+            style: GoogleFonts.spaceGrotesk(fontSize: 20, color: onSurface, fontWeight: FontWeight.w900),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -809,10 +802,8 @@ class _AppBarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
     final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final primary = theme.primaryColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -820,20 +811,14 @@ class _AppBarAction extends StatelessWidget {
         width: 36,
         height: 36,
         margin: const EdgeInsets.only(top: 6, bottom: 6, left: 6),
-        decoration: BoxDecoration(
-          color: active
-              ? primary.withValues(alpha: 0.15)
-              : onSurface.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active
-                ? primary.withValues(alpha: 0.3)
-                : onSurface.withValues(alpha: 0.08),
-            width: 0.5,
-          ),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: active ? AppTheme.neonYellow : (isDark ? AppTheme.darkSlate : AppTheme.pureWhite),
+          borderRadius: 4.0,
+          shadowOffset: active ? 1.5 : 0.0,
         ),
         child: Icon(icon,
-            color: active ? primary : onSurface, size: 16),
+            color: active ? CupertinoColors.black : onSurface, size: 16),
       ),
     );
   }
@@ -849,29 +834,29 @@ class _LiveDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-          horizontal: large ? 10 : 7, vertical: large ? 5 : 3),
+          horizontal: large ? 10 : 6, vertical: large ? 5 : 3),
       decoration: BoxDecoration(
-        color: _live.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _live.withValues(alpha: 0.35), width: 0.5),
+        color: CupertinoColors.black,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: AppTheme.neonYellow, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: large ? 6 : 5,
-            height: large ? 6 : 5,
+            width: large ? 6 : 4,
+            height: large ? 6 : 4,
             decoration:
                 const BoxDecoration(color: _live, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 4),
           Text(
             'LIVE',
-            style: GoogleFonts.outfit(
-              color: _live,
-              fontSize: large ? 11 : 9.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+            style: GoogleFonts.spaceGrotesk(
+              color: CupertinoColors.white,
+              fontSize: large ? 11 : 8.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -897,7 +882,6 @@ class _ModeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
     final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Expanded(
@@ -906,19 +890,23 @@ class _ModeTab extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            color: active ? theme.primaryColor : CupertinoColors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
+          decoration: active
+              ? AppTheme.brutalistDecoration(
+                  context: context,
+                  color: AppTheme.neonYellow,
+                  borderRadius: 4.0,
+                  shadowOffset: 0.0,
+                )
+              : const BoxDecoration(color: CupertinoColors.transparent),
           alignment: Alignment.center,
           child: Text(
-            label,
-            style: GoogleFonts.outfit(
+            label.toUpperCase(),
+            style: GoogleFonts.spaceGrotesk(
               fontSize: 12,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: FontWeight.w900,
               color: active
-                  ? CupertinoColors.white
-                  : onSurface.withValues(alpha: 0.45),
+                  ? CupertinoColors.black
+                  : onSurface.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -944,9 +932,7 @@ class _PickerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
     final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final primary = theme.primaryColor;
     
     String label;
     Widget icon;
@@ -961,11 +947,13 @@ class _PickerCard extends StatelessWidget {
         label = (item as CategoryEntry).name;
         icon = Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+          decoration: AppTheme.brutalistDecoration(
+            context: context,
+            color: AppTheme.neonYellow,
+            borderRadius: 4.0,
+            shadowOffset: 2.0,
           ),
-          child: Icon(CupertinoIcons.rectangle_grid_2x2_fill, color: primary, size: 24),
+          child: const Icon(FluentIcons.grid_24_filled, color: CupertinoColors.black, size: 24),
         );
         break;
     }
@@ -973,36 +961,23 @@ class _PickerCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_kRadius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
-              isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-            ],
-          ),
-          border: Border.all(color: onSurface.withValues(alpha: 0.08), width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.black.withValues(alpha: 0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : AppTheme.creamBg,
+          borderRadius: 4.0,
+          shadowOffset: 3.5,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(_kRadius),
+          borderRadius: BorderRadius.circular(4.0),
           child: Stack(
             children: [
               Positioned(
                 right: -15,
                 bottom: -15,
                 child: Icon(
-                  type == BrowsingType.country ? CupertinoIcons.globe : CupertinoIcons.tag_fill,
+                  type == BrowsingType.country ? FluentIcons.globe_24_regular : FluentIcons.tag_24_filled,
                   size: 64,
-                  color: onSurface.withValues(alpha: 0.03),
+                  color: onSurface.withValues(alpha: 0.04),
                 ),
               ),
               Padding(
@@ -1013,15 +988,15 @@ class _PickerCard extends StatelessWidget {
                     icon,
                     const SizedBox(height: 12),
                     Text(
-                      label,
+                      label.toUpperCase(),
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
                         color: onSurface,
-                        letterSpacing: -0.2,
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ],
@@ -1047,45 +1022,48 @@ class _ChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
     final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
     final onSurfaceVariant = isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-    final primary = theme.primaryColor;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
+        margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2C2C2E).withValues(alpha: 0.6) : const Color(0xFFE5E5EA).withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(_kRadius),
-          border: Border.all(
-              color: onSurface.withValues(alpha: 0.08), width: 0.5),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : AppTheme.pureWhite,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         child: Row(
           children: [
             // Logo
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(4),
               child: Container(
                 width: 48,
                 height: 48,
-                color: CupertinoColors.white,
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
+                  color: CupertinoColors.white,
+                  borderRadius: 4.0,
+                  shadowOffset: 0.0,
+                ),
                 child: channel.logoUrl != null
                     ? CachedNetworkImage(
                         imageUrl: channel.logoUrl!,
                         fit: BoxFit.contain,
                         placeholder: (_, _) =>
-                            Container(color: CupertinoColors.white.withValues(alpha: 0.1)),
+                            Container(color: CupertinoColors.white),
                         errorWidget: (_, _, _) => Icon(
-                          CupertinoIcons.tv_fill,
-                          color: onSurfaceVariant.withValues(alpha: 0.3),
+                          FluentIcons.tv_24_filled,
+                          color: CupertinoColors.black.withValues(alpha: 0.3),
                           size: 20,
                         ),
                       )
-                    : Icon(CupertinoIcons.tv_fill,
-                        color: onSurfaceVariant.withValues(alpha: 0.3),
+                    : Icon(FluentIcons.tv_24_filled,
+                        color: CupertinoColors.black.withValues(alpha: 0.3),
                         size: 20),
               ),
             ),
@@ -1095,30 +1073,30 @@ class _ChannelTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    channel.name,
+                    channel.name.toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.spaceGrotesk(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w900,
                         color: onSurface),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       Container(
-                        width: 5,
-                        height: 5,
+                        width: 6,
+                        height: 6,
                         decoration: const BoxDecoration(
                             color: _live, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        channel.group ?? 'Live',
-                        style: GoogleFonts.outfit(
-                            fontSize: 12,
+                        (channel.group ?? 'LIVE').toUpperCase(),
+                        style: GoogleFonts.spaceGrotesk(
+                            fontSize: 11,
                             color: onSurfaceVariant,
-                            fontWeight: FontWeight.w500),
+                            fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -1126,8 +1104,19 @@ class _ChannelTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(CupertinoIcons.play_circle_fill,
-                color: primary, size: 28),
+            Container(
+              decoration: AppTheme.brutalistDecoration(
+                context: context,
+                color: AppTheme.neonYellow,
+                borderRadius: 4.0,
+                shadowOffset: 0.0,
+              ),
+              child: const Icon(
+                FluentIcons.play_circle_24_filled,
+                color: CupertinoColors.black,
+                size: 28,
+              ),
+            ),
           ],
         ),
       ),
@@ -1147,43 +1136,26 @@ class _ChannelGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
     final onSurfaceVariant = isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-    final primary = theme.primaryColor;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              isDark ? const Color(0xFF2C2C2E).withValues(alpha: 0.9) : const Color(0xFFE5E5EA).withValues(alpha: 0.9),
-              isDark ? const Color(0xFF1C1C1E).withValues(alpha: 0.6) : const Color(0xFFF2F2F7).withValues(alpha: 0.6),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(_kRadius),
-          border: Border.all(
-              color: onSurface.withValues(alpha: 0.08), width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoColors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : AppTheme.pureWhite,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
             // Logo centered
             Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
-              bottom: 40,
+              top: 10,
+              left: 10,
+              right: 10,
+              bottom: 44,
               child: Center(
                 child: Hero(
                   tag: 'channel-logo-${channel.id}',
@@ -1192,13 +1164,13 @@ class _ChannelGridCard extends StatelessWidget {
                           imageUrl: channel.logoUrl!,
                           fit: BoxFit.contain,
                           errorWidget: (_, _, _) => Icon(
-                            CupertinoIcons.tv_fill,
-                            color: onSurfaceVariant.withValues(alpha: 0.2),
+                            FluentIcons.tv_24_filled,
+                            color: onSurfaceVariant.withValues(alpha: 0.3),
                             size: 32,
                           ),
                         )
-                      : Icon(CupertinoIcons.tv_fill,
-                          color: onSurfaceVariant.withValues(alpha: 0.2),
+                      : Icon(FluentIcons.tv_24_filled,
+                          color: onSurfaceVariant.withValues(alpha: 0.3),
                           size: 32),
                 ),
               ),
@@ -1209,41 +1181,39 @@ class _ChannelGridCard extends StatelessWidget {
               bottom: 0,
               left: 0,
               right: 0,
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? CupertinoColors.black.withValues(alpha: 0.8) : CupertinoColors.white.withValues(alpha: 0.8),
-                      border: Border(
-                        top: BorderSide(
-                            color: onSurface.withValues(alpha: 0.06), width: 0.5),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? CupertinoColors.black : AppTheme.neonYellow,
+                  border: Border(
+                    top: BorderSide(
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        width: 2.0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const _LiveDot(),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        channel.name.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                            letterSpacing: -0.3),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        const _LiveDot(),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            channel.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: onSurface,
-                                letterSpacing: -0.3),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(CupertinoIcons.play_circle_fill,
-                            color: primary, size: 16),
-                      ],
+                    const SizedBox(width: 4),
+                    Icon(
+                      FluentIcons.play_circle_24_filled,
+                      color: isDark ? AppTheme.neonYellow : CupertinoColors.black,
+                      size: 14,
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

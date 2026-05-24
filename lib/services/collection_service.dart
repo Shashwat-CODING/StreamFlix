@@ -3,35 +3,24 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/collection_models.dart';
 import '../models/media_item.dart';
-import '../models/song_model.dart';
 import 'sync_service.dart';
 
 class CollectionService extends ChangeNotifier {
   static final CollectionService instance = CollectionService._();
   CollectionService._();
 
-  List<MusicPlaylist> _playlists = [];
   List<MediaCollection> _collections = [];
   Map<int, SeriesProgress> _seriesProgress = {};
 
-  List<MusicPlaylist> get playlists => _playlists;
   List<MediaCollection> get collections => _collections;
   Map<int, SeriesProgress> get seriesProgress => _seriesProgress;
 
-  static const String _playlistKey = 'music_playlists';
   static const String _collectionKey = 'media_collections';
   static const String _progressKey = 'series_progress';
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Load Playlists
-    final pData = prefs.getString(_playlistKey);
-    if (pData != null) {
-      final List decoded = jsonDecode(pData);
-      _playlists = decoded.map((e) => MusicPlaylist.fromJson(e)).toList();
-    }
-
     // Load Collections
     final cData = prefs.getString(_collectionKey);
     if (cData != null) {
@@ -49,22 +38,15 @@ class CollectionService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void restore(List<dynamic> playlists, List<dynamic> collections, Map<String, dynamic> progress) {
-    _playlists = playlists.map((e) => MusicPlaylist.fromJson(e)).toList();
+  void restore(List<dynamic> collections, Map<String, dynamic> progress) {
     _collections = collections.map((e) => MediaCollection.fromJson(e)).toList();
     _seriesProgress = progress.map((k, v) => MapEntry(int.parse(k), SeriesProgress.fromJson(v)));
-    _savePlaylists();
     _saveCollections();
     _saveProgress();
     notifyListeners();
   }
 
-  Future<void> _savePlaylists() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_playlistKey, jsonEncode(_playlists.map((e) => e.toJson()).toList()));
-    notifyListeners();
-    SyncService.instance.syncMusicPlaylists();
-  }
+
 
   Future<void> _saveCollections() async {
     final prefs = await SharedPreferences.getInstance();
@@ -80,41 +62,7 @@ class CollectionService extends ChangeNotifier {
     SyncService.instance.syncProgress();
   }
 
-  // Playlist Methods
-  void createPlaylist(String name, {String? description}) {
-    final playlist = MusicPlaylist(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      description: description,
-      songs: [],
-      createdAt: DateTime.now(),
-    );
-    _playlists.add(playlist);
-    _savePlaylists();
-  }
 
-  void deletePlaylist(String id) {
-    _playlists.removeWhere((p) => p.id == id);
-    _savePlaylists();
-  }
-
-  void addSongToPlaylist(String playlistId, SongModel song) {
-    final index = _playlists.indexWhere((p) => p.id == playlistId);
-    if (index != -1) {
-      if (!_playlists[index].songs.any((s) => s.id == song.id)) {
-        _playlists[index].songs.add(song);
-        _savePlaylists();
-      }
-    }
-  }
-
-  void removeSongFromPlaylist(String playlistId, String songId) {
-    final index = _playlists.indexWhere((p) => p.id == playlistId);
-    if (index != -1) {
-      _playlists[index].songs.removeWhere((s) => s.id == songId);
-      _savePlaylists();
-    }
-  }
 
   // Collection Methods
   void createCollection(String name, {String? description}) {

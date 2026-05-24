@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:video_player/video_player.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/ios_widgets.dart';
+import '../theme/app_theme.dart';
 import '../utils/language_utils.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
@@ -418,118 +420,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _showDownloadQualityCupertinoAlertDialog(List<StreamSource> sources) {
+    // Sort sources: Quality DESC, then Size DESC
+    final sortedSources = List<StreamSource>.from(sources)
+      ..sort((a, b) {
+        final aInt =
+            int.tryParse(a.quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        final bInt =
+            int.tryParse(b.quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        return bInt.compareTo(aInt);
+      });
+
     showCupertinoModalPopup(
       context: context,
-      // backgroundColor: CupertinoColors.transparent,
-      // isScrollControlled: true,
-      builder: (context) {
-        final cs = CupertinoTheme.of(context).colorScheme;
-
-        // Sort sources: Quality DESC, then Size DESC
-        final sortedSources = List<StreamSource>.from(sources)
-          ..sort((a, b) {
-            final aInt =
-                int.tryParse(a.quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-            final bInt =
-                int.tryParse(b.quality.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-            return bInt.compareTo(aInt);
-          });
-
-        return Container(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Download Quality',
-                style: GoogleFonts.dmSerifDisplay(
-                  fontSize: 24,
-                  color: cs.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Select your preferred quality. Sources are optimized for speed.',
-                style: GoogleFonts.dmSans(color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: 24),
-              Flexible(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.5,
-                  ),
-                  child: _buildQualityList(sortedSources, cs),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: cs.primary.withValues(alpha: 0.1)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(CupertinoIcons.speedometer, color: cs.primary, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Tip: Larger files usually offer better video and audio fidelity.',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildQualityList(List<StreamSource> sources, CupertinoColorScheme cs) {
-    return ListView.separated(
-      shrinkWrap: true,
-      itemCount: sources.length,
-      padding: EdgeInsets.zero,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final source = sources[index];
-        final sizeText = source.sizeText ?? 'Unknown size';
-
-        return _sheetTrackTile(
-          label: '${source.quality} · $sizeText',
-          isActive: false,
-          icon: CupertinoIcons.arrow_down_circle,
-          cs: cs,
-          onTap: () {
-            Navigator.pop(context);
-            _initiateDownload([source], 'DL'); // generic label for new endpoint
-          },
-        );
-      },
+      builder: (context) => CompactActionSheet(
+        title: const Text('Download Quality'),
+        message: const Text('Select your preferred quality. Sources are optimized for speed.'),
+        actions: sortedSources.map((source) {
+          final sizeText = source.sizeText ?? 'Unknown size';
+          return CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _initiateDownload([source], 'DL');
+            },
+            child: Text('${source.quality} · $sizeText'),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
     );
   }
 
@@ -679,7 +600,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final theme = CupertinoTheme.of(context);
     return Column(
       children: [
-        const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: CupertinoColors.systemOrange, size: 48),
+        const Icon(FluentIcons.warning_24_filled, color: CupertinoColors.systemOrange, size: 48),
         const SizedBox(height: 16),
         Text(
           'Server Not Responding',
@@ -1113,7 +1034,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: Focus(
           autofocus: true,
           child: CupertinoPageScaffold(
-            backgroundColor: isDark ? CupertinoColors.black : theme.barBackgroundColor,
+            backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth > 950;
@@ -1222,16 +1143,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Row(
             children: [
               _glassIconButton(
-      padding: EdgeInsets.zero,
-                icon: CupertinoIcons.chevron_back,
+                padding: EdgeInsets.zero,
+                icon: FluentIcons.chevron_left_24_regular,
                 onPressed: () => Navigator.pop(context),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 16),
               Text(
-                'Playback Settings',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                'PLAYBACK SETTINGS',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
@@ -1244,42 +1165,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             children: [
               _sidebarTile(
-                icon: CupertinoIcons.videocam_circle,
+                icon: FluentIcons.video_clip_24_regular,
                 title: 'Resolution',
                 subtitle: 'Auto',
                 onTap: _showVideoTrackSelection,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.layers_alt,
+                icon: FluentIcons.library_24_regular,
                 title: 'Change Server',
                 subtitle: _selectedSource?.source ?? 'Select Source',
                 onTap: _showSourcePicker,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.globe,
+                icon: FluentIcons.globe_24_regular,
                 title: 'Language (Sources)',
                 subtitle: _selectedLanguage ?? 'Original',
                 onTap: _showLanguageSelection,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.waveform_circle,
+                icon: FluentIcons.sound_wave_circle_24_regular,
                 title: 'Regional Dubs (Server 2)',
                 subtitle: 'Fetch dubbed versions',
                 onTap: _fetchingDubs ? () {} : _fetchAndShowDubs,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.music_note_2,
+                icon: FluentIcons.music_note_2_24_regular,
                 title: 'Audio Tracks (Internal)',
                 subtitle: 'Internal embedded tracks',
                 onTap: _showAudioSelection,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.arrow_down_circle,
+                icon: FluentIcons.arrow_circle_down_24_regular,
                 title: 'Download Video',
                 subtitle: 'Save for offline viewing',
                 onTap: _startDownload,
@@ -1320,13 +1241,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 12.0,
+          hasShadow: false,
+        ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: theme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: theme.primaryColor, size: 20),
             ),
@@ -1337,17 +1265,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       color: CupertinoColors.systemGrey,
-                      fontSize: 13,
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                 ],
@@ -1380,14 +1309,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final download = downloads.first;
         return Container(
           margin: const EdgeInsets.only(left: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: CupertinoColors.black.withValues(alpha: 0.6),
+            color: AppTheme.neonPink,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: CupertinoColors.white.withValues(alpha: 0.1),
-              width: 0.5,
-            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1402,17 +1327,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 )
               else
                 const Icon(
-                  CupertinoIcons.pause_fill,
+                  FluentIcons.pause_24_filled,
                   size: 14,
                   color: CupertinoColors.white,
                 ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Text(
                 '${(download.progress * 100).toInt()}%',
-                style: GoogleFonts.dmSans(
+                style: GoogleFonts.inter(
                   color: CupertinoColors.white,
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -1428,8 +1353,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Row(
         children: [
           _glassIconButton(
-      padding: EdgeInsets.zero,
-            icon: CupertinoIcons.chevron_back,
+            padding: EdgeInsets.zero,
+            icon: FluentIcons.chevron_left_24_regular,
             onPressed: () => Navigator.pop(context),
           ),
           const Spacer(),
@@ -1446,10 +1371,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     required VoidCallback onPressed,
     EdgeInsets? padding,
   }) {
-    return CupertinoButton(
-      padding: padding ?? EdgeInsets.zero,
-      onPressed: onPressed,
-      child: Icon(icon, color: CupertinoColors.white, size: 24),
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: isDark ? const Color(0x662C2C2E) : const Color(0x66FFFFFF),
+          child: CupertinoButton(
+            padding: padding ?? const EdgeInsets.all(10),
+            minSize: 0,
+            onPressed: onPressed,
+            child: Icon(
+              icon,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              size: 22,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1460,7 +1399,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         color: CupertinoColors.black,
         child: Center(
           child: Icon(
-            CupertinoIcons.play_rectangle_fill,
+            FluentIcons.video_clip_24_filled,
             color: CupertinoColors.white.withValues(alpha: 0.1),
             size: 64,
           ),
@@ -1490,17 +1429,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _buildFetchingOverlay() {
     return Container(
       color: const Color(0x8A000000),
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CupertinoActivityIndicator(color: CupertinoColors.white),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              'Fetching regional dubs (Server 2)...',
-              style: GoogleFonts.dmSans(
+              'Fetching dubbed versions...',
+              style: TextStyle(
                 color: CupertinoColors.white,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -1508,7 +1447,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
   }
-
+  
   // ── Bottom Sheets ───────────────────────────────────────────────────────────
 
   void _showSettingsSheet() {
@@ -1517,144 +1456,114 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          'Playback Settings',
-                          style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _sheetOption(
-                                icon: CupertinoIcons.speedometer,
-                                label:
-                                    'Playback Speed (${_videoPlayerController?.value.playbackSpeed ?? 1.0}x)',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showSpeedSelector();
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _sheetOption(
-                                icon: CupertinoIcons.film,
-                                label: 'Video Quality (HLS)',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showVideoTrackSelection();
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _sheetOption(
-                                icon: CupertinoIcons.layers_alt,
-                                label: 'Change Server',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showSourcePicker();
-                                },
-                              ),
-                              if (widget.item?.mediaType == 'tv') ...[
-                                const SizedBox(height: 8),
-                                _sheetOption(
-                                  icon: CupertinoIcons.list_bullet,
-                                  label: 'Episodes',
-                                  cs: cs,
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    _showEpisodeSelector();
-                                  },
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              _sheetOption(
-                                icon: CupertinoIcons.arrow_down_circle,
-                                label: 'Download Video',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _startDownload();
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _sheetOption(
-                                icon: CupertinoIcons.music_note_2,
-                                label: 'Audio Tracks (Internal)',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showAudioSelection();
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              _sheetOption(
-                                icon: CupertinoIcons.globe,
-                                label: 'Change Language (Dubs)',
-                                cs: cs,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  _showLanguageSelection();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Playback Settings'),
+        message: const Text('Configure player properties'),
+        actions: [
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSpeedSelector();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.top_speed_24_regular, size: 16),
+                const SizedBox(width: 8),
+                Text('Playback Speed (${_videoPlayerController?.value.playbackSpeed ?? 1.0}x)'),
+              ],
             ),
           ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showVideoTrackSelection();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.movies_and_tv_24_regular, size: 16),
+                const SizedBox(width: 8),
+                const Text('Video Quality (HLS)'),
+              ],
+            ),
+          ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSourcePicker();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.library_24_regular, size: 16),
+                const SizedBox(width: 8),
+                Text('Change Server (${_selectedSource?.source ?? 'Select Source'})'),
+              ],
+            ),
+          ),
+          if (widget.item?.mediaType == 'tv')
+            CompactActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showEpisodeSelector();
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(FluentIcons.list_24_regular, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('Episodes'),
+                ],
+              ),
+            ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _startDownload();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.arrow_circle_down_24_regular, size: 16),
+                const SizedBox(width: 8),
+                const Text('Download Video'),
+              ],
+            ),
+          ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showAudioSelection();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.music_note_2_24_regular, size: 16),
+                const SizedBox(width: 8),
+                const Text('Audio Tracks (Internal)'),
+              ],
+            ),
+          ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showLanguageSelection();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.globe_24_regular, size: 16),
+                const SizedBox(width: 8),
+                Text('Change Language (Dubs) (${_selectedLanguage ?? 'Original'})'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1662,89 +1571,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _showSpeedSelector() {
     final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final currentSpeed = _videoPlayerController?.value.playbackSpeed ?? 1.0;
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Center(child: _dragHandle()),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: CupertinoButton(
-                            padding: EdgeInsets.zero,
-                            minSize: 0,
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Icon(
-                              CupertinoIcons.xmark_circle_fill,
-                              color: cs.onSurface.withValues(alpha: 0.5),
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: Text(
-                      'Select Playback Speed',
-                      style: GoogleFonts.dmSerifDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: speeds.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 6),
-                      itemBuilder: (context, index) {
-                        final s = speeds[index];
-                        final isActive =
-                            _videoPlayerController?.value.playbackSpeed == s;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _sheetTrackTile(
-                            label: '${s}x',
-                            isActive: isActive,
-                            icon: CupertinoIcons.speedometer,
-                            cs: cs,
-                            onTap: () {
-                              _videoPlayerController?.setPlaybackSpeed(s);
-                              Navigator.pop(ctx);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Playback Speed'),
+        message: const Text('Select speed multiplier'),
+        actions: speeds.map((s) {
+          final isCurrent = currentSpeed == s;
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setPlaybackSpeed(s);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '${s}x ${isCurrent ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1753,11 +1605,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _fetchAndShowDubs() async {
     if (widget.item == null) return;
 
-    // Show loading dialog
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Center(
+      builder: (ctx) => const Center(
         child: IOSLoading(message: 'Fetching regional dubs...'),
       ),
     );
@@ -1774,116 +1625,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Remove loading dialog
 
-      if (dubs.isNotEmpty) {
-        setState(() {
-          for (var d in dubs) {
-            if (!_sources.any((s) => s.url == d.url)) {
-              _sources.add(d);
-            }
-          }
-        });
+      final filteredSources = dubs;
+      if (filteredSources.isEmpty) {
+        _showToast('No dubs available on Server 2');
+        return;
       }
-      _showDubsMenu(dubs);
-    } catch (e) {
+
       if (mounted) {
-        Navigator.pop(context); // Remove loading dialog
-        _showToast('Failed to fetch dubs: $e');
+        _showDubsPicker(filteredSources);
+      }
+    } catch (error) {
+      if (mounted) {
+        Navigator.pop(context);
+        _showToast('Failed to fetch dubs');
       }
     }
   }
 
-  void _showDubsMenu(List<StreamSource> sources) {
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-
-    final filteredSources = sources.where((s) => s.serverId == 2).toList();
-    if (filteredSources.isEmpty) {
-      // If somehow called with no server 2 sources, we should not show an empty menu
-      return;
-    }
-
+  void _showDubsPicker(List<StreamSource> sources) {
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          'Available Dubs (Server 2)',
-                          style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: filteredSources.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final s = filteredSources[index];
-                            String label = s.language ?? 'Unknown';
-                            final isCurrent = _selectedSource?.url == s.url;
-  
-                            return _sheetTrackTile(
-                              label: '$label (${s.quality})',
-                              isActive: isCurrent,
-                              icon: CupertinoIcons.waveform_path,
-                              cs: cs,
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                if (!isCurrent) {
-                                  _applyNewSource(s);
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Available Dubs (Server 2)'),
+        message: const Text('Select dub variant'),
+        actions: sources.map((s) {
+          final active = s == _selectedSource;
+          return CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (!active) {
+                setState(() {
+                  _selectedSource = s;
+                  _loading = true;
+                  _error = false;
+                });
+                _initPlayer(s.url);
+              }
+            },
+            child: Text(
+              '${s.source}${s.language != null && s.language != "null" && s.language!.isNotEmpty ? " (${s.language})" : ""} ${active ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1909,102 +1699,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _showLanguageSelection() {
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-
-    // Distinct languages available in sources, plus "Original" (null)
     final languages = _sources
         .map((s) => s.language)
         .whereType<String>()
         .toSet()
         .toList();
-
-    // Add "Original" as the first option
     languages.insert(0, 'Original');
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          'Select Language',
-                          style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: languages.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 6),
-                          itemBuilder: (context, index) {
-                            final lang = languages[index];
-                            final actualLang = lang == 'Original' ? null : lang;
-                            final isActive = _selectedLanguage == actualLang;
-
-                            return _sheetTrackTile(
-                              label: lang,
-                              isActive: isActive,
-                              icon: CupertinoIcons.globe,
-                              cs: cs,
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                if (!isActive) {
-                                  _changeLanguage(actualLang);
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Select Language'),
+        message: const Text('Choose audio track language'),
+        actions: languages.map((lang) {
+          final actualLang = lang == 'Original' ? null : lang;
+          final isActive = _selectedLanguage == actualLang;
+          return CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (!isActive) {
+                _changeLanguage(actualLang);
+              }
+            },
+            child: Text(
+              '$lang ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -2044,94 +1772,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final audioTracks = _mediaInfo.audio as List;
     final activeTracks = _videoPlayerController?.getActiveAudioTracks() ?? [];
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          'Internal Audio Tracks',
-                          style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: audioTracks.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final track = audioTracks[index];
-                            final trackId = track.index ?? index;
-                            final lang =
-                                track.metadata?['language'] ??
-                                'Track ${index + 1}';
-                            final isActive = activeTracks.contains(trackId);
-
-                            return _sheetTrackTile(
-                              label: '$lang (${track.codec ?? "Unknown"})',
-                              isActive: isActive,
-                              icon: CupertinoIcons.waveform,
-                              cs: cs,
-                              onTap: () {
-                                _videoPlayerController?.setAudioTracks([trackId]);
-                                Navigator.pop(ctx);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Internal Audio Tracks'),
+        message: const Text('Select embedded track'),
+        actions: List.generate(audioTracks.length, (index) {
+          final track = audioTracks[index];
+          final trackId = track.index ?? index;
+          final lang = track.metadata?['language'] ?? 'Track ${index + 1}';
+          final isActive = activeTracks.contains(trackId);
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setAudioTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '$lang (${track.codec ?? "Unknown"}) ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -2143,251 +1813,73 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
 
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final videoTracks = _mediaInfo.video as List;
     final activeTracks = _videoPlayerController?.getActiveVideoTracks() ?? [];
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          'Internal Video Tracks',
-                          style: GoogleFonts.dmSerifDisplay(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: cs.onSurface,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: videoTracks.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final track = videoTracks[index];
-                            final trackId = track.index ?? index;
-                            final isActive = activeTracks.contains(trackId);
-                            final codec = track.codec ?? "Unknown";
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Internal Video Tracks'),
+        message: const Text('Select stream rendering track'),
+        actions: List.generate(videoTracks.length, (index) {
+          final track = videoTracks[index];
+          final trackId = track.index ?? index;
+          final isActive = activeTracks.contains(trackId);
+          final codec = track.codec ?? "Unknown";
 
-                            return _sheetTrackTile(
-                              label: 'Track $index ($codec)',
-                              isActive: isActive,
-                              icon: CupertinoIcons.videocam,
-                              cs: cs,
-                              onTap: () {
-                                _videoPlayerController?.setVideoTracks([trackId]);
-                                Navigator.pop(ctx);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setVideoTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              'Track $index ($codec) ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
   }
 
   void _showSourcePicker() {
-    final cs = CupertinoTheme.of(context).colorScheme;
     final availableSources = _sources
         .where((s) => !_failedCDNs.contains(_getCDN(s.url)))
         .toList();
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ConstrainedBottomSheet(
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: isDark
-                  ? CupertinoColors.black.withValues(alpha: 0.8)
-                  : cs.surface.withValues(alpha: 0.8),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: _dragHandle()),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              minSize: 0,
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: cs.onSurface.withValues(alpha: 0.5),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: cs.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              CupertinoIcons.sparkles,
-                              color: cs.primary,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Select Quality',
-                            style: GoogleFonts.dmSerifDisplay(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${availableSources.length} sources',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (availableSources.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Center(
-                            child: Text(
-                              _loading
-                                  ? 'Searching for sources...'
-                                  : 'No available sources found',
-                              style: GoogleFonts.dmSans(
-                                color: cs.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Flexible(
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: availableSources.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 8),
-                            itemBuilder: (_, i) {
-                              final s = availableSources[i];
-                              final active = s == _selectedSource;
-                              
-                              IconData qualIcon = CupertinoIcons.videocam_fill;
-                              final q = s.quality.toLowerCase();
-                              if (q.contains('4k') || q.contains('2160')) {
-                                qualIcon = CupertinoIcons.star_circle_fill;
-                              } else if (q.contains('1080')) {
-                                qualIcon = CupertinoIcons.check_mark_circled_solid;
-                              } else if (q.contains('720')) {
-                                qualIcon = CupertinoIcons.tv_fill;
-                              } else if (q.contains('480')) {
-                                qualIcon = CupertinoIcons.square_arrow_down;
-                              }
-  
-                              final label = '${s.quality} - ${s.serverId == 0 ? s.source : "${s.source} (Server ${s.serverId})"}';
-  
-                              return _sheetTrackTile(
-                                label: label,
-                                isActive: active,
-                                icon: qualIcon,
-                                cs: cs,
-                                onTap: () async {
-                                  Navigator.pop(ctx);
-                                  if (!active) {
-                                    debugPrint('\n🔀 Manual source switch → $s');
-                                    await Future.delayed(const Duration(milliseconds: 150));
-                                    if (!mounted) return;
-                                    setState(() {
-                                      _selectedSource = s;
-                                      _handlingError = false;
-                                      _failedCDNs.remove(_getCDN(s.url));
-                                      _loading = true;
-                                      _error = false;
-                                    });
-                                    _initPlayer(s.url);
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Change Server'),
+        message: const Text('Select a streaming server'),
+        actions: availableSources.map((source) {
+          final isCurrent = _selectedSource?.url == source.url;
+          return CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (!isCurrent) {
+                _applyNewSource(source);
+              }
+            },
+            child: Text(
+              '${source.source}${source.language != null && source.language != "null" && source.language!.isNotEmpty ? " (${source.language})" : ""} ${isCurrent ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -2417,9 +1909,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isDark ? CupertinoColors.white.withValues(alpha: 0.05) : CupertinoColors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(14),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         child: Row(
           children: [
@@ -2427,26 +1921,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: theme.primaryColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: CupertinoColors.black, width: 1.5),
               ),
-              child: Icon(icon, color: theme.primaryColor, size: 18),
+              child: Icon(icon, color: isDark ? CupertinoColors.black : CupertinoColors.white, size: 18),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                label.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
             ),
             Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
-              size: 16,
+              FluentIcons.chevron_right_24_regular,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              size: 18,
             ),
           ],
         ),
@@ -2468,35 +1963,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
           color: isActive
-              ? theme.primaryColor.withValues(alpha: 0.12)
-              : (isDark ? CupertinoColors.white.withValues(alpha: 0.05) : CupertinoColors.black.withValues(alpha: 0.05)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isActive
-                ? theme.primaryColor.withValues(alpha: 0.3)
-                : CupertinoColors.transparent,
-            width: 1,
-          ),
+              ? AppTheme.neonYellow
+              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+          borderRadius: 4.0,
+          shadowOffset: isActive ? 2.5 : 0.0,
+          hasShadow: isActive,
         ),
         child: Row(
           children: [
             Icon(
-              isActive ? CupertinoIcons.checkmark_circle_fill : icon,
+              isActive ? FluentIcons.checkmark_circle_24_filled : icon,
               color: isActive
-                  ? theme.primaryColor
-                  : CupertinoColors.systemGrey,
+                  ? CupertinoColors.black
+                  : (isDark ? CupertinoColors.white : CupertinoColors.black),
               size: 20,
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                label.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: isActive
+                      ? CupertinoColors.black
+                      : (isDark ? CupertinoColors.white : CupertinoColors.black),
                 ),
               ),
             ),
@@ -2504,15 +1998,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  color: CupertinoColors.black,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'Active',
-                  style: GoogleFonts.dmSans(
+                  'ACTIVE',
+                  style: GoogleFonts.spaceGrotesk(
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: cs.primary,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.neonYellow,
                   ),
                 ),
               ),
@@ -2570,118 +2064,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-
   void _showErrorCupertinoAlertDialog(String message) {
     if (!mounted) return;
-    final theme = CupertinoTheme.of(context);
-    final cs = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
     showCupertinoDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: (isDark ? CupertinoColors.black : CupertinoColors.white).withValues(
-                    alpha: 0.65,
-                  ),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: cs.onSurface.withValues(alpha: 0.1),
-                    width: 0.5,
-                  ),
-                ),
-                child: Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        top: -12,
-                        right: -12,
-                        child: CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                          },
-                          child: Icon(
-                            CupertinoIcons.clear_circled_solid,
-                            color: cs.onSurface.withValues(alpha: 0.4),
-                            size: 30,
-                          ),
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: cs.error.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              CupertinoIcons.exclamationmark_triangle_fill,
-                              color: cs.error,
-                              size: 44,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Playback Interrupted',
-                            style: GoogleFonts.dmSerifDisplay(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: cs.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            message,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              color: cs.onSurfaceVariant,
-                              height: 1.5,
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            width: double.infinity,
-                            child: CupertinoButton.filled(
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _loadMovieStreams();
-                              },
-                              child: Text(
-                                'Try Again',
-                                style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('Playback Interrupted'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
-        ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _loadMovieStreams();
+            },
+            child: const Text('Try Again'),
+          ),
+        ],
       ),
     );
   }
@@ -2727,14 +2130,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _infoBadge(item.year, CupertinoIcons.calendar),
+                  _infoBadge(item.year, FluentIcons.calendar_24_regular),
                   _infoBadge(
                     item.ratingStr,
-                    CupertinoIcons.star_fill,
+                    FluentIcons.star_24_filled,
                     iconColor: CupertinoColors.systemYellow,
                   ),
                   if (item.runtime != null)
-                    _infoBadge('${item.runtime}m', CupertinoIcons.time),
+                    _infoBadge('${item.runtime}m', FluentIcons.clock_24_regular),
                 ],
               ).animate().fadeIn(delay: 100.ms),
               const SizedBox(height: 24),
@@ -2803,7 +2206,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                       child: p.fullProfileUrl.isEmpty
                           ? Icon(
-                              CupertinoIcons.person_fill,
+                              FluentIcons.person_24_filled,
                               color: cs.onSurfaceVariant,
                               size: 32,
                             )
@@ -2868,39 +2271,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Row(
         children: [
           _actionChip(
-            icon: CupertinoIcons.chevron_back,
+            icon: FluentIcons.chevron_left_24_regular,
             label: 'Back',
             onTap: () => Navigator.pop(context),
           ),
           const SizedBox(width: 8),
           _actionChip(
-            icon: CupertinoIcons.settings,
+            icon: FluentIcons.settings_24_regular,
             label: 'Settings',
             onTap: _showSettingsSheet,
           ),
           const SizedBox(width: 8),
           _actionChip(
-            icon: CupertinoIcons.waveform_circle,
+            icon: FluentIcons.sound_wave_circle_24_regular,
             label: 'Dubs',
             onTap: _fetchAndShowDubs,
           ),
           if (widget.item?.mediaType == 'tv') ...[
             const SizedBox(width: 8),
             _actionChip(
-              icon: CupertinoIcons.list_bullet,
+              icon: FluentIcons.list_24_regular,
               label: 'Episodes',
               onTap: _showEpisodeSelector,
             ),
           ],
           const SizedBox(width: 8),
           _actionChip(
-            icon: CupertinoIcons.arrow_down_to_line,
+            icon: FluentIcons.arrow_download_24_regular,
             label: 'Download',
             onTap: _startDownload,
           ),
           const SizedBox(width: 8),
           _actionChip(
-            icon: CupertinoIcons.share,
+            icon: FluentIcons.share_24_regular,
             label: 'Share',
             onTap: () {
               if (widget.item == null) return;
@@ -2927,31 +2330,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     required String label,
     required VoidCallback onTap,
   }) {
-    final cs = CupertinoTheme.of(context).colorScheme;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
-      // borderRadius: BorderRadius.circular(24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.2),
-            width: 0.5,
-          ),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: cs.onSurface),
+            Icon(icon, size: 18, color: isDark ? CupertinoColors.white : CupertinoColors.black),
             const SizedBox(width: 8),
             Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
+              label.toUpperCase(),
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
               ),
             ),
           ],
@@ -2965,22 +2366,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     showCupertinoModalPopup(
       context: context,
-      // isScrollControlled: true,
-      // backgroundColor: CupertinoColors.transparent,
-      builder: (ctx) => _PlayerEpisodeSelectorSheet(
-        tvDetail: widget.item!,
-        currentSeason: widget.season,
-        currentEpisode: widget.episode,
-        onEpisodeSelected: (s, e) {
-          // Restart player with new episode
-          Navigator.pushReplacement(
-            context,
-            CupertinoPageRoute(
-              builder: (_) =>
+      builder: (ctx) => ConstrainedBottomSheet(
+        child: _PlayerEpisodeSelectorSheet(
+          tvDetail: widget.item!,
+          currentSeason: widget.season,
+          currentEpisode: widget.episode,
+          onEpisodeSelected: (s, e) {
+            Navigator.pushReplacement(
+              context,
+              CupertinoPageRoute(
+                builder: (_) =>
                   PlayerScreen(item: widget.item, season: s, episode: e),
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -3155,86 +2555,62 @@ class _PlayerEpisodeSelectorSheetState
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final cs = CupertinoTheme.of(context).colorScheme;
 
-    return Container(
-      height: size.height * 0.8,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F0F0F) : cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(
-          color: isDark
-              ? CupertinoColors.white.withValues(alpha: 0.05)
-              : CupertinoColors.black.withValues(alpha: 0.05),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? CupertinoColors.white.withValues(alpha: 0.12)
-                          : CupertinoColors.black.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(2),
+    return GlassBox(
+      color: isDark ? AppTheme.darkSlate : AppTheme.creamBg,
+      borderRadius: 14.0,
+      child: Container(
+        height: size.height * 0.8,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? CupertinoColors.white.withValues(alpha: 0.12)
+                            : CupertinoColors.black.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    minSize: 0,
-                    onPressed: () => Navigator.pop(context),
-                    child: Icon(
-                      CupertinoIcons.xmark_circle_fill,
-                      color: cs.onSurface.withValues(alpha: 0.5),
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 16, 20),
-            child: Row(
-              children: [
-                Text(
-                  'Episodes',
-                  style: GoogleFonts.dmSerifDisplay(
-                    fontSize: 28,
-                    color: cs.onSurface,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 16, 20),
+              child: Row(
+                children: [
+                  Text(
+                    'Episodes',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: CupertinoButton(
                       padding: EdgeInsets.zero,
                       onPressed: () {
                         showCupertinoModalPopup(
                           context: context,
-                          builder: (ctx) => CupertinoActionSheet(
+                          builder: (ctx) => CompactActionSheet(
                             title: const Text('Select Season'),
                             actions: widget.tvDetail.seasons.map((s) {
-                              return CupertinoActionSheetAction(
+                              return CompactActionSheetAction(
                                 child: Text(s.name),
                                 onPressed: () {
                                   Navigator.pop(ctx);
@@ -3243,7 +2619,7 @@ class _PlayerEpisodeSelectorSheetState
                                 },
                               );
                             }).toList(),
-                            cancelButton: CupertinoActionSheetAction(
+                            cancelButton: CompactActionSheetAction(
                               child: const Text('Cancel'),
                               onPressed: () => Navigator.pop(ctx),
                             ),
@@ -3255,22 +2631,26 @@ class _PlayerEpisodeSelectorSheetState
                         children: [
                           Text(
                             _selectedSeason?.name ?? 'Select Season',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: cs.onSurface,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(CupertinoIcons.chevron_down, size: 14),
+                          Icon(
+                            FluentIcons.chevron_down_24_regular, 
+                            size: 14, 
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black
+                          ),
                         ],
                       ),
                     ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          Container(height: 1, color: CupertinoColors.separator),
+            Container(height: 0.5, color: CupertinoColors.separator),
           Expanded(
             child: _loading
                 ? const Center(child: IOSLoading(message: 'Loading episodes...'))
@@ -3297,8 +2677,9 @@ class _PlayerEpisodeSelectorSheetState
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _PlayerEpisodeTile extends StatelessWidget {
@@ -3314,25 +2695,26 @@ class _PlayerEpisodeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isCurrent
-            ? cs.primaryContainer.withValues(alpha: 0.3)
-            : cs.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(16),
+            ? theme.primaryColor
+            : (isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white),
+        borderRadius: BorderRadius.circular(12.0),
         border: Border.all(
-          color: isCurrent
-              ? cs.primary.withValues(alpha: 0.5)
-              : cs.outlineVariant.withValues(alpha: 0.2),
-          width: 1,
+          color: isCurrent 
+              ? theme.primaryColor 
+              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA)),
+          width: 1.0,
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: CupertinoButton(
+        padding: EdgeInsets.zero,
         onPressed: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -3348,10 +2730,10 @@ class _PlayerEpisodeTile extends StatelessWidget {
                   errorWidget: (_, __, ___) => Container(
                     width: 100,
                     height: 60,
-                    color: cs.surfaceContainerHighest,
+                    color: isDark ? AppTheme.pureBlack : CupertinoColors.systemGrey5,
                     child: Icon(
-                      CupertinoIcons.film,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                      FluentIcons.movies_and_tv_24_regular,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
                 ),
@@ -3363,19 +2745,19 @@ class _PlayerEpisodeTile extends StatelessWidget {
                   children: [
                     Text(
                       'Episode ${episode.episodeNumber}',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: cs.primary,
-                        letterSpacing: 0.5,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isCurrent ? CupertinoColors.white : CupertinoColors.systemGrey,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       episode.name,
-                      style: GoogleFonts.dmSans(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurface,
+                        fontWeight: FontWeight.w600,
+                        color: isCurrent ? CupertinoColors.white : (isDark ? CupertinoColors.white : CupertinoColors.black),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -3384,10 +2766,10 @@ class _PlayerEpisodeTile extends StatelessWidget {
                 ),
               ),
               if (isCurrent)
-                Icon(
-                  CupertinoIcons.play_circle_fill,
-                  color: cs.primary,
-                  size: 20,
+                const Icon(
+                  FluentIcons.play_circle_24_filled,
+                  color: CupertinoColors.white,
+                  size: 24,
                 ),
             ],
           ),

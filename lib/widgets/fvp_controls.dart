@@ -6,6 +6,8 @@ import 'package:flutter/material.dart' show Icons, Colors, Slider, CircularProgr
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import '../theme/app_theme.dart';
 
 
 class FvpCustomControls extends StatefulWidget {
@@ -194,22 +196,14 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
               Center(
                 child: GestureDetector(
                   onTap: _playPause,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.black.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: CupertinoColors.white.withValues(alpha: 0.1), width: 0.5),
-                        ),
-                        padding: const EdgeInsets.all(24),
-                        child: Icon(
-                          isFinished ? Icons.replay : (widget.controller.value.isPlaying ? Icons.pause : Icons.play_arrow),
-                          color: CupertinoColors.white,
-                          size: 48,
-                        ),
+                  child: ClipOval(
+                    child: Container(
+                      color: CupertinoColors.black.withOpacity(0.5),
+                      padding: const EdgeInsets.all(20),
+                      child: Icon(
+                        isFinished ? FluentIcons.arrow_clockwise_24_filled : (widget.controller.value.isPlaying ? FluentIcons.pause_24_filled : FluentIcons.play_24_filled),
+                        color: CupertinoColors.white,
+                        size: 44,
                       ),
                     ),
                   ),
@@ -248,20 +242,22 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
                             padding: const EdgeInsets.all(8.0),
                             child: Row(
                               children: [
-                                if (widget.topBar != null) Expanded(child: widget.topBar!),
-                                const Spacer(),
+                                if (widget.topBar != null)
+                                  Expanded(child: widget.topBar!)
+                                else
+                                  const Spacer(),
                                 _buildTopBarButton(
-                                  icon: _isZoomedToFill ? CupertinoIcons.zoom_out : CupertinoIcons.zoom_in,
+                                  icon: _isZoomedToFill ? FluentIcons.zoom_out_24_regular : FluentIcons.zoom_in_24_regular,
                                   onPressed: _toggleZoomFill,
                                 ),
                                 const SizedBox(width: 8),
                                 _buildTopBarButton(
-                                  icon: widget.controller.value.volume > 0 ? CupertinoIcons.volume_up : CupertinoIcons.volume_off,
+                                  icon: widget.controller.value.volume > 0 ? FluentIcons.speaker_2_24_regular : FluentIcons.speaker_mute_24_regular,
                                   onPressed: _toggleMute,
                                 ),
                                 const SizedBox(width: 8),
                                 _buildTopBarButton(
-                                  icon: CupertinoIcons.fullscreen,
+                                  icon: FluentIcons.full_screen_maximize_24_regular,
                                   onPressed: widget.onFullscreenToggle,
                                 ),
                               ],
@@ -300,30 +296,30 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
                                 Row(
                                   children: [
                                     _buildControlIcon(
-                                      icon: CupertinoIcons.gobackward_15,
+                                      icon: FluentIcons.arrow_counterclockwise_24_regular,
                                       onPressed: _skipBack,
                                     ),
                                     _buildControlIcon(
-                                      icon: widget.controller.value.isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
+                                      icon: widget.controller.value.isPlaying ? FluentIcons.pause_24_filled : FluentIcons.play_24_filled,
                                       onPressed: _playPause,
                                       size: 32,
                                     ),
                                     _buildControlIcon(
-                                      icon: CupertinoIcons.goforward_15,
+                                      icon: FluentIcons.arrow_clockwise_24_regular,
                                       onPressed: _skipForward,
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
                                       _formatDuration(widget.controller.value.position),
-                                      style: GoogleFonts.outfit(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                     ),
                                     Text(
                                       ' / ${_formatDuration(widget.controller.value.duration)}',
-                                      style: GoogleFonts.outfit(color: CupertinoColors.white.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w500),
+                                      style: TextStyle(color: CupertinoColors.white.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.w500),
                                     ),
                                     const Spacer(),
                                     _buildControlIcon(
-                                      icon: Icons.settings,
+                                      icon: FluentIcons.settings_24_regular,
                                       onPressed: () {
                                         if (widget.onShowSettings != null) widget.onShowSettings!();
                                       },
@@ -349,22 +345,23 @@ class _FvpCustomControlsState extends State<FvpCustomControls> {
   }
 
   Widget _buildTopBarButton({required IconData icon, required VoidCallback onPressed}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CupertinoColors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: CupertinoButton(
-        padding: const EdgeInsets.all(12),
-        onPressed: onPressed,
-        child: Icon(icon, color: CupertinoColors.white, size: 20),
+    return ClipOval(
+      child: Container(
+        color: CupertinoColors.black.withOpacity(0.4),
+        child: CupertinoButton(
+          padding: const EdgeInsets.all(10),
+          minSize: 0,
+          onPressed: onPressed,
+          child: Icon(icon, color: CupertinoColors.white, size: 20),
+        ),
       ),
     );
   }
 
   Widget _buildControlIcon({required IconData icon, required VoidCallback onPressed, double size = 26}) {
     return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.all(8),
+      minSize: 0,
       onPressed: onPressed,
       child: Icon(icon, color: CupertinoColors.white, size: size),
     );
@@ -404,10 +401,10 @@ class _CupertinoVideoProgressBarState extends State<CupertinoVideoProgressBar> {
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-            activeTrackColor: theme.primaryColor,
-            inactiveTrackColor: CupertinoColors.white.withValues(alpha: 0.2),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: CupertinoColors.white,
+            inactiveTrackColor: CupertinoColors.white.withOpacity(0.3),
             thumbColor: CupertinoColors.white,
           ),
           child: Slider(

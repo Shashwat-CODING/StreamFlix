@@ -333,10 +333,7 @@ class DeepLinkService {
     showCupertinoDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => CupertinoActionSheet(
-        title: Text(message),
-        message: const CupertinoActivityIndicator(),
-      ),
+      builder: (context) => IOSLoading(message: message),
     );
   }
 }

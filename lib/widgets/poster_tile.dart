@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../services/library_service.dart';
 import '../models/media_item.dart';
+import '../theme/app_theme.dart';
 
 class PosterTile extends StatelessWidget {
   const PosterTile({super.key, required this.item, required this.onTap});
@@ -14,50 +16,69 @@ class PosterTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: AppTheme.brutalistDecoration(
+                context: context,
+                color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                borderRadius: 12.0,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.0),
+                child: Container(
+                  color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: item.posterPath != null
+                            ? Image.network(
+                                'https://image.tmdb.org/t/p/w500${item.posterPath}',
+                                fit: BoxFit.cover,
+                              )
+                            : const Center(
+                                child: Icon(
+                                  FluentIcons.movies_and_tv_24_regular,
+                                  color: CupertinoColors.systemGrey,
+                                  size: 32,
+                                ),
+                              ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: _WatchLaterButton(item: item),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
-                child: Stack(children: [
-                  Positioned.fill(
-                    child: item.posterPath != null
-                        ? Image.network('https://image.tmdb.org/t/p/w500${item.posterPath}', fit: BoxFit.cover)
-                        : const Center(
-                            child: Icon(
-                              CupertinoIcons.film,
-                              color: CupertinoColors.systemGrey,
-                              size: 32,
-                            ),
-                          ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: _WatchLaterButton(item: item),
-                  ),
-                ]),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-        Text(item.mediaType.toUpperCase(),
-            style: TextStyle(fontSize: 10, color: CupertinoColors.systemGrey.withValues(alpha: 0.8))),
-      ]),
+          const SizedBox(height: 8),
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            item.mediaType.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9,
+              color: CupertinoColors.systemGrey,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -83,17 +104,19 @@ class _WatchLaterButtonState extends State<_WatchLaterButton> {
         }
         setState(() {});
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: CupertinoColors.black.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(20),
+      child: ClipOval(
+        child: Container(
+          color: isSaved 
+              ? AppTheme.neonYellow 
+              : CupertinoColors.black.withOpacity(0.5),
+          padding: const EdgeInsets.all(6.0),
+          child: Icon(
+            isSaved ? FluentIcons.checkmark_24_filled : FluentIcons.add_24_regular,
+            size: 14,
+            color: CupertinoColors.white,
+          ),
         ),
-        padding: const EdgeInsets.all(6.0),
-        child: Icon(isSaved ? CupertinoIcons.check_mark : CupertinoIcons.add, size: 18, color: CupertinoColors.white),
       ),
     );
   }
 }
-
-
-

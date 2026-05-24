@@ -13,18 +13,15 @@ class SettingsService extends ChangeNotifier {
   // Settings keys
   static const _keyThemeMode = 'theme_mode';
   static const _keyCustomFont = 'custom_font';
-  static const _keyAutoQueue = 'auto_queue';
 
   // Default values: 0 = system, 1 = dark, 2 = light
   int _themeMode = 0;
-  String _customFont = 'Karst'; 
-  bool _autoQueue = true;
+  String _customFont = 'Inter'; 
   String _appVersion = 'Unknown';
   Color? _accentColor;
 
   int get themeMode => _themeMode;
   String get customFont => _customFont;
-  bool get autoQueue => _autoQueue;
   String get appVersion => _appVersion;
   Color? get accentColor => _accentColor;
 
@@ -34,8 +31,7 @@ class SettingsService extends ChangeNotifier {
     
     // Load settings
     _themeMode = _prefs.getInt(_keyThemeMode) ?? 0;
-    _customFont = _prefs.getString(_keyCustomFont) ?? 'Karst';
-    _autoQueue = _prefs.getBool(_keyAutoQueue) ?? true;
+    _customFont = _prefs.getString(_keyCustomFont) ?? 'Inter';
     final accentVal = _prefs.getInt('accent_color');
     if (accentVal != null) _accentColor = Color(accentVal);
 
@@ -48,15 +44,13 @@ class SettingsService extends ChangeNotifier {
 
   void restore(Map<String, dynamic> data) {
     _themeMode = data['theme_mode'] ?? (data['theme'] == 'dark' ? 1 : (data['theme'] == 'light' ? 2 : 0));
-    _customFont = data['custom_font'] ?? 'Karst';
-    _autoQueue = data['auto_queue'] ?? data['autoplay'] ?? true;
+    _customFont = data['custom_font'] ?? 'Inter';
     if (data['accent_color'] != null) {
       _accentColor = Color(data['accent_color']);
     }
     
     _prefs.setInt(_keyThemeMode, _themeMode);
     _prefs.setString(_keyCustomFont, _customFont);
-    _prefs.setBool(_keyAutoQueue, _autoQueue);
     if (_accentColor != null) {
        _prefs.setInt('accent_color', _accentColor!.value);
     }
@@ -89,12 +83,7 @@ class SettingsService extends ChangeNotifier {
     SyncService.instance.syncSettings();
   }
 
-  Future<void> setAutoQueue(bool value) async {
-    _autoQueue = value;
-    await _prefs.setBool(_keyAutoQueue, value);
-    notifyListeners();
-    SyncService.instance.syncSettings();
-  }
+
 
   Future<void> clearCache() async {
     PaintingBinding.instance.imageCache.clear();

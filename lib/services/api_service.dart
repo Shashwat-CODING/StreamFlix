@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
-import '../models/game.dart';
 import '../models/api_models.dart';
 import '../models/channel.dart';
 import '../services/auth_service.dart';
@@ -15,7 +14,7 @@ class ApiService {
   static final ApiService instance = ApiService._();
 
   // ── APP CONFIG ──────────────────────────────────────────────────────────
-  static const String appVersion = 'v2.5.0';
+  static const String appVersion = 'v2.6.0';
   static const String websiteUrl = 'https://luxa-app.vercel.app';
 
   // ── LOGGING ─────────────────────────────────────────────────────────────
@@ -596,26 +595,7 @@ class ApiService {
     return false;
   }
 
-  // ── GAMES METHODS ────────────────────────────────────────────────────────
 
-  Future<List<Game>> fetchGames() async {
-    if (!isConfigured) return [];
-    try {
-      final res = await _executeWithFailover((baseUrl) {
-        final uri = Uri.parse('$baseUrl/api/games');
-        _logReq(uri.toString());
-        return http.get(uri);
-      });
-      _logRes('games', res.statusCode);
-      if (res.statusCode == 200) {
-        final List data = jsonDecode(res.body);
-        return data.map((j) => Game.fromJson(j)).toList();
-      }
-    } catch (e) {
-      _logErr('games', e);
-    }
-    return [];
-  }
 
   // ── ANIME METHODS ───────────────────────────────────────────────────────
 

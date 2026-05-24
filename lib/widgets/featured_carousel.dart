@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../models/media_item.dart';
 
 class FeaturedCarousel extends StatefulWidget {
@@ -183,7 +184,7 @@ class _CarouselCard extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      CupertinoIcons.star_fill,
+                                      FluentIcons.star_24_filled,
                                       color: theme.primaryColor,
                                       size: 14,
                                     ),
@@ -245,7 +246,7 @@ class _CarouselCard extends StatelessWidget {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(CupertinoIcons.play_fill, size: 20),
+                                      const Icon(FluentIcons.play_24_filled, size: 20),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Watch Now',
@@ -265,7 +266,7 @@ class _CarouselCard extends StatelessWidget {
                                 color: CupertinoColors.white.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 onPressed: () {},
-                                child: const Icon(CupertinoIcons.add, size: 24, color: CupertinoColors.white),
+                                child: const Icon(FluentIcons.add_24_regular, size: 24, color: CupertinoColors.white),
                               ),
                             ],
                           )

@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show CircularProgressIndicator, AlwaysStoppedAnimation, Material, MaterialType;
 import 'dart:ui';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 
 extension CupertinoThemeDataX on CupertinoThemeData {
   CupertinoColorScheme get colorScheme => CupertinoColorScheme(this);
@@ -17,20 +16,20 @@ class CupertinoColorScheme {
   Color get onPrimary => CupertinoColors.white;
   Color get onSurface => _theme.brightness == Brightness.dark ? CupertinoColors.white : CupertinoColors.black;
   Color get onSurfaceVariant => _theme.brightness == Brightness.dark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2;
-  Color get surface => _theme.brightness == Brightness.dark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-  Color get surfaceContainerHigh => _theme.brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
-  Color get surfaceContainerHighest => _theme.brightness == Brightness.dark ? const Color(0xFF3A3A3C) : const Color(0xFFD1D1D6);
+  Color get surface => _theme.brightness == Brightness.dark ? const Color(0xFF1C1C1E) : const Color(0xFFFAFAFA);
+  Color get surfaceContainerHigh => _theme.brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFF0F0F0);
+  Color get surfaceContainerHighest => _theme.brightness == Brightness.dark ? const Color(0xFF3A3A3C) : const Color(0xFFE5E5EA);
   Color get surfaceContainerLowest => _theme.brightness == Brightness.dark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-  Color get outlineVariant => _theme.brightness == Brightness.dark ? CupertinoColors.systemGrey4 : CupertinoColors.systemGrey5;
-  Color get primaryContainer => _theme.primaryColor.withValues(alpha: 0.2);
+  Color get outlineVariant => _theme.brightness == Brightness.dark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+  Color get primaryContainer => _theme.primaryColor.withValues(alpha: 0.15);
   Color get error => CupertinoColors.systemRed;
   Color get onErrorContainer => CupertinoColors.white;
-  Color get errorContainer => CupertinoColors.systemRed.withValues(alpha: 0.2);
+  Color get errorContainer => CupertinoColors.systemRed.withValues(alpha: 0.15);
   
   Color get onSecondaryContainer => onSurfaceVariant;
   Color get secondaryContainer => _theme.brightness == Brightness.dark
-      ? const Color(0x33FFFFFF)
-      : const Color(0x1A000000);
+      ? const Color(0x1AFFFFFF)
+      : const Color(0x0A000000);
   Color get shadow => CupertinoColors.black;
 }
 
@@ -55,22 +54,16 @@ class GlassBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final defaultBg = isDark
+        ? const Color(0xCC1C1C1E)
+        : const Color(0xCCFFFFFF);
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
         child: Container(
           padding: padding,
-          decoration: BoxDecoration(
-            color: color ?? (isDark 
-                ? CupertinoColors.white.withValues(alpha: opacity * 0.5) 
-                : CupertinoColors.black.withValues(alpha: opacity * 0.1)),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-              color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.1),
-              width: 0.5,
-            ),
-          ),
+          color: color ?? defaultBg,
           child: child,
         ),
       ),
@@ -98,22 +91,21 @@ class IOSSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: CupertinoSearchTextField(
         controller: controller,
         placeholder: placeholder,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         onTap: onTap,
-        backgroundColor: isDark 
-            ? CupertinoColors.systemGrey6.darkColor.withValues(alpha: 0.5)
-            : CupertinoColors.systemGrey6.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(10),
-        style: GoogleFonts.outfit(
+        style: TextStyle(
           color: isDark ? CupertinoColors.white : CupertinoColors.black,
+          fontSize: 15,
         ),
-        placeholderStyle: GoogleFonts.outfit(
+        placeholderStyle: TextStyle(
           color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+          fontSize: 15,
         ),
       ),
     );
@@ -128,24 +120,26 @@ class IOSSettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null)
           Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 8, top: 24),
+            padding: const EdgeInsets.only(left: 28, bottom: 6, top: 20),
             child: Text(
               title!.toUpperCase(),
-              style: GoogleFonts.outfit(
-                fontSize: 13,
+              style: const TextStyle(
+                fontSize: 12,
                 color: CupertinoColors.systemGrey,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
           ),
         Container(
           decoration: BoxDecoration(
-            color: CupertinoTheme.of(context).barBackgroundColor.withValues(alpha: 1.0),
+            color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
             borderRadius: BorderRadius.circular(10),
           ),
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -155,9 +149,10 @@ class IOSSettingsGroup extends StatelessWidget {
                 children: [
                   children[index],
                   if (index < children.length - 1)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: Container(height: 0.5, color: CupertinoColors.separator),
+                    Container(
+                      margin: const EdgeInsets.only(left: 52),
+                      height: 0.5, 
+                      color: isDark ? const Color(0x1AFFFFFF) : const Color(0x1F000000),
                     ),
                 ],
               );
@@ -190,20 +185,21 @@ class IOSSettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+
     return CupertinoButton(
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: iconColor,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(icon, color: CupertinoColors.white, size: 20),
+              child: Icon(icon, color: CupertinoColors.white, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -212,23 +208,32 @@ class IOSSettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                      fontSize: 17,
+                      fontSize: 15,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: GoogleFonts.outfit(
+                      style: const TextStyle(
                         color: CupertinoColors.systemGrey,
-                        fontSize: 13,
+                        fontSize: 12,
+                        fontWeight: FontWeight.normal,
                       ),
                     ),
                 ],
               ),
             ),
-            if (trailing != null) trailing! else const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey3, size: 20),
+            if (trailing != null) 
+              trailing! 
+            else 
+              const Icon(
+                FluentIcons.chevron_right_24_regular, 
+                color: CupertinoColors.systemGrey, 
+                size: 14
+              ),
           ],
         ),
       ),
@@ -255,25 +260,27 @@ class IOSSettingsSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: iconColor,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, color: CupertinoColors.white, size: 20),
+            child: Icon(icon, color: CupertinoColors.white, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               title,
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                fontSize: 17,
+                fontSize: 15,
+                fontWeight: FontWeight.normal,
               ),
             ),
           ),
@@ -295,54 +302,33 @@ class IOSLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: size,
-                    height: size,
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          CupertinoTheme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                  ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xCC2C2C2E) : const Color(0xCCFFFFFF),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoActivityIndicator(radius: size / 2.5),
+            if (message != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
-                Center(
-                  child: Icon(
-                    CupertinoIcons.play_fill,
-                    size: size * 0.4,
-                    color: CupertinoTheme.of(context).primaryColor.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (message != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              message!,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.systemGrey,
-                letterSpacing: 0.5,
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -378,6 +364,179 @@ class ConstrainedBottomSheet extends StatelessWidget {
           maxHeight: size.height * 0.75,
         ),
         child: child,
+      ),
+    );
+  }
+}
+
+class CompactActionSheet extends StatelessWidget {
+  final Widget? title;
+  final Widget? message;
+  final List<Widget> actions;
+  final Widget? cancelButton;
+
+  const CompactActionSheet({
+    super.key,
+    this.title,
+    this.message,
+    required this.actions,
+    this.cancelButton,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    final bgColor = isDark ? const Color(0xEE1C1C1E) : const Color(0xEEE5E5EA);
+    final screenH = MediaQuery.of(context).size.height;
+    // Cap the actions pane to 55% of the screen height so the sheet never
+    // takes over the full display. Content scrolls if it overflows.
+    final maxActionsH = screenH * 0.55;
+
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 20),
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Actions container — scrollable when many items
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    color: bgColor,
+                    // Constrain height so it never overflows the screen
+                    constraints: BoxConstraints(maxHeight: maxActionsH),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (title != null || message != null)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0F000000),
+                                  width: 0.5,
+                                ),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (title != null)
+                                  DefaultTextStyle(
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    child: title!,
+                                  ),
+                                if (title != null && message != null)
+                                  const SizedBox(height: 2),
+                                if (message != null)
+                                  DefaultTextStyle(
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? CupertinoColors.systemGrey2 : CupertinoColors.systemGrey,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    child: message!,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        // Scrollable actions list
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: actions.length,
+                            separatorBuilder: (_, _) => Container(
+                              height: 0.5,
+                              color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0F000000),
+                            ),
+                            itemBuilder: (_, i) => actions[i],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (cancelButton != null) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      width: double.infinity,
+                      color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
+                      child: cancelButton!,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CompactActionSheetAction extends StatelessWidget {
+  final VoidCallback onPressed;
+  final Widget child;
+  final bool isDestructiveAction;
+  final bool isDefaultAction;
+
+  const CompactActionSheetAction({
+    super.key,
+    required this.onPressed,
+    required this.child,
+    this.isDestructiveAction = false,
+    this.isDefaultAction = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+
+    Color textColor = isDestructiveAction
+        ? CupertinoColors.systemRed
+        : (isDark ? CupertinoColors.white : CupertinoColors.black);
+
+    if (isDefaultAction && !isDestructiveAction) {
+      textColor = CupertinoColors.systemBlue;
+    }
+
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minSize: 38,
+      onPressed: onPressed,
+      child: Container(
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: DefaultTextStyle(
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isDefaultAction ? FontWeight.w600 : FontWeight.w400,
+            color: textColor,
+          ),
+          child: child,
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:fvp/fvp.dart';
@@ -15,6 +16,7 @@ import '../models/api_models.dart';
 import '../widgets/fvp_controls.dart';
 import '../widgets/ios_widgets.dart';
 import '../services/watch_history.dart';
+import '../theme/app_theme.dart';
 
 class AnimePlayerScreen extends StatefulWidget {
   final MediaDetail item;
@@ -415,7 +417,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : theme.barBackgroundColor,
+      backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 950;
@@ -518,19 +520,41 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     );
   }
 
+  Widget _glassIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    EdgeInsets? padding,
+  }) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: isDark ? const Color(0x662C2C2E) : const Color(0x66FFFFFF),
+          child: CupertinoButton(
+            padding: padding ?? const EdgeInsets.all(10),
+            minSize: 0,
+            onPressed: onPressed,
+            child: Icon(
+              icon,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              size: 22,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFloatingTopBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          CupertinoButton(
+          _glassIconButton(
             padding: EdgeInsets.zero,
+            icon: FluentIcons.chevron_left_24_regular,
             onPressed: () => Navigator.pop(context),
-            child: const Icon(
-              CupertinoIcons.chevron_back,
-              color: CupertinoColors.white,
-              size: 24,
-            ),
           ),
           const Spacer(),
         ],
@@ -594,7 +618,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      CupertinoIcons.clock,
+                      FluentIcons.clock_24_regular,
                       color: CupertinoColors.systemOrange,
                       size: 16,
                     ),
@@ -646,7 +670,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    CupertinoIcons.exclamationmark_triangle_fill,
+                    FluentIcons.warning_24_filled,
                     color: CupertinoColors.systemRed,
                     size: 40,
                   ),
@@ -678,25 +702,50 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                   children: [
                     Expanded(
                       child: CupertinoButton(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        color: CupertinoColors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        padding: EdgeInsets.zero,
                         onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'Go Back',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: AppTheme.brutalistDecoration(
+                            context: context,
+                            color: CupertinoColors.white,
+                            borderRadius: 4.0,
+                            shadowOffset: 2.0,
+                          ),
+                          child: Center(
+                            child: Text(
+                              'GO BACK',
+                              style: GoogleFonts.spaceGrotesk(
+                                color: CupertinoColors.black,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: CupertinoButton.filled(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        borderRadius: BorderRadius.circular(12),
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
                         onPressed: _loadPlayback,
-                        child: Text(
-                          'Retry',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: AppTheme.brutalistDecoration(
+                            context: context,
+                            color: AppTheme.neonYellow,
+                            borderRadius: 4.0,
+                            shadowOffset: 2.0,
+                          ),
+                          child: Center(
+                            child: Text(
+                              'RETRY',
+                              style: GoogleFonts.spaceGrotesk(
+                                color: CupertinoColors.black,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -746,10 +795,10 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
             spacing: 12,
             runSpacing: 12,
             children: [
-              if (item.year.isNotEmpty) _infoBadge(item.year, CupertinoIcons.calendar),
+              if (item.year.isNotEmpty) _infoBadge(item.year, FluentIcons.calendar_24_regular),
               _infoBadge(
                 item.ratingStr,
-                CupertinoIcons.star_fill,
+                FluentIcons.star_24_filled,
                 iconColor: CupertinoColors.systemYellow,
               ),
             ],
@@ -813,7 +862,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         if (_prevSlug != null)
           Expanded(
             child: _actionButton(
-              icon: CupertinoIcons.backward_fill,
+              icon: FluentIcons.rewind_24_filled,
               label: 'Previous',
               onTap: _onPrev,
             ),
@@ -822,7 +871,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
         if (_nextSlug != null)
           Expanded(
             child: _actionButton(
-              icon: CupertinoIcons.forward_fill,
+              icon: FluentIcons.fast_forward_24_filled,
               label: 'Next',
               onTap: _onNext,
             ),
@@ -836,33 +885,27 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     required String label,
     required VoidCallback onTap,
   }) {
-    final cs = CupertinoTheme.of(context).colorScheme;
     return CupertinoButton(
       padding: EdgeInsets.zero,
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: cs.primary,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: cs.primary.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: AppTheme.neonYellow,
+          borderRadius: 4.0,
+          shadowOffset: 3.0,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: CupertinoColors.white, size: 18),
+            Icon(icon, color: CupertinoColors.black, size: 18),
             const SizedBox(width: 8),
             Text(
-              label,
-              style: GoogleFonts.dmSans(
-                color: CupertinoColors.white,
-                fontWeight: FontWeight.bold,
+              label.toUpperCase(),
+              style: GoogleFonts.spaceGrotesk(
+                color: CupertinoColors.black,
+                fontWeight: FontWeight.w900,
                 fontSize: 14,
               ),
             ),
@@ -883,17 +926,17 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
           child: Row(
             children: [
-              CupertinoButton(
+              _glassIconButton(
                 padding: EdgeInsets.zero,
+                icon: FluentIcons.chevron_left_24_regular,
                 onPressed: () => Navigator.pop(context),
-                child: const Icon(CupertinoIcons.chevron_back, size: 24),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 14),
               Text(
-                'Playback Settings',
-                style: GoogleFonts.outfit(
+                'PLAYBACK SETTINGS',
+                style: GoogleFonts.spaceGrotesk(
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
@@ -906,28 +949,28 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             children: [
               _sidebarTile(
-                icon: CupertinoIcons.film,
+                icon: FluentIcons.movies_and_tv_24_regular,
                 title: 'Video Quality (HLS)',
                 subtitle: 'Internal quality tracks',
                 onTap: _showVideoTrackSelection,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.music_note_2,
+                icon: FluentIcons.music_note_2_24_regular,
                 title: 'Audio Tracks',
                 subtitle: 'Internal audio tracks',
                 onTap: _showAudioSelection,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.layers_alt,
+                icon: FluentIcons.library_24_regular,
                 title: 'Change Server',
                 subtitle: _selectedSource?.source ?? 'Select Source',
                 onTap: _showSourcePicker,
                 theme: theme,
               ),
               _sidebarTile(
-                icon: CupertinoIcons.speedometer,
+                icon: FluentIcons.top_speed_24_regular,
                 title: 'Playback Speed',
                 subtitle: '${_videoPlayerController?.value.playbackSpeed ?? 1.0}x',
                 onTap: _showSpeedPicker,
@@ -935,7 +978,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
               ),
               if (_nextSlug != null)
                 _sidebarTile(
-                  icon: CupertinoIcons.forward_end,
+                  icon: FluentIcons.next_24_filled,
                   title: 'Next Episode',
                   subtitle: 'Play the next one',
                   onTap: _onNext,
@@ -943,7 +986,7 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                 ),
               if (_prevSlug != null)
                 _sidebarTile(
-                  icon: CupertinoIcons.backward_end,
+                  icon: FluentIcons.previous_24_filled,
                   title: 'Previous Episode',
                   subtitle: 'Go back to previous',
                   onTap: _onPrev,
@@ -969,13 +1012,20 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 12.0,
+          hasShadow: false,
+        ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: theme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: theme.primaryColor, size: 20),
             ),
@@ -986,17 +1036,18 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                       color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       color: CupertinoColors.systemGrey,
-                      fontSize: 13,
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                 ],
@@ -1011,83 +1062,75 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   // ── Settings Sheet ──────────────────────────────────────────────────────────
 
   void _showSettingsSheet() {
-    final cs = CupertinoTheme.of(context).colorScheme;
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: isDark
-                ? CupertinoColors.black.withValues(alpha: 0.8)
-                : cs.surface.withValues(alpha: 0.8),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Center(child: _dragHandle()),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Playback Settings',
-                      style: GoogleFonts.dmSerifDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _sheetOption(
-                      icon: CupertinoIcons.speedometer,
-                      label:
-                          'Playback Speed (${_videoPlayerController?.value.playbackSpeed ?? 1.0}x)',
-                      cs: cs,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _showSpeedPicker();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _sheetOption(
-                      icon: CupertinoIcons.film,
-                      label: 'Video Quality (HLS)',
-                      cs: cs,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _showVideoTrackSelection();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _sheetOption(
-                      icon: CupertinoIcons.music_note_2,
-                      label: 'Audio Tracks (Internal)',
-                      cs: cs,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _showAudioSelection();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    _sheetOption(
-                      icon: CupertinoIcons.layers_alt,
-                      label: 'Change Server',
-                      cs: cs,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _showSourcePicker();
-                      },
-                    ),
-                  ],
-                ),
-              ),
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Playback Settings'),
+        message: const Text('Configure player properties'),
+        actions: [
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSpeedPicker();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.top_speed_24_regular, size: 16),
+                const SizedBox(width: 8),
+                Text('Playback Speed (${_videoPlayerController?.value.playbackSpeed ?? 1.0}x)'),
+              ],
             ),
           ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showVideoTrackSelection();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.movies_and_tv_24_regular, size: 16),
+                const SizedBox(width: 8),
+                const Text('Video Quality (HLS)'),
+              ],
+            ),
+          ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showAudioSelection();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.music_note_2_24_regular, size: 16),
+                const SizedBox(width: 8),
+                const Text('Audio Tracks (Internal)'),
+              ],
+            ),
+          ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSourcePicker();
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(FluentIcons.library_24_regular, size: 16),
+                const SizedBox(width: 8),
+                Text('Change Server (${_selectedSource?.source ?? 'Select Source'})'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1096,64 +1139,33 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   // ── Speed Picker ────────────────────────────────────────────────────────────
 
   void _showSpeedPicker() {
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    final currentSpeed = _videoPlayerController?.value.playbackSpeed ?? 1.0;
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: isDark
-                ? CupertinoColors.black.withValues(alpha: 0.8)
-                : cs.surface.withValues(alpha: 0.8),
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 14),
-                Center(child: _dragHandle()),
-                const SizedBox(height: 20),
-                Text(
-                  'Select Playback Speed',
-                  style: GoogleFonts.dmSerifDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: speeds.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final s = speeds[index];
-                      final isActive =
-                          _videoPlayerController?.value.playbackSpeed == s;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 0),
-                        child: _sheetTrackTile(
-                          label: '${s}x',
-                          isActive: isActive,
-                          icon: CupertinoIcons.speedometer,
-                          cs: cs,
-                          onTap: () {
-                            _videoPlayerController?.setPlaybackSpeed(s);
-                            Navigator.pop(ctx);
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Playback Speed'),
+        message: const Text('Select speed multiplier'),
+        actions: speeds.map((s) {
+          final isCurrent = currentSpeed == s;
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setPlaybackSpeed(s);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '${s}x ${isCurrent ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1162,105 +1174,39 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
   // ── Source / Server Picker ──────────────────────────────────────────────────
 
   void _showSourcePicker() {
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: isDark
-                ? CupertinoColors.black.withValues(alpha: 0.8)
-                : cs.surface.withValues(alpha: 0.8),
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 14),
-                Center(child: _dragHandle()),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(CupertinoIcons.sparkles,
-                          color: cs.primary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Select Server',
-                      style: GoogleFonts.dmSerifDisplay(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${_sources.length} sources',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _sources.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final s = _sources[i];
-                      final active = s == _selectedSource;
-
-                      IconData qualIcon = CupertinoIcons.videocam_fill;
-                      final q = s.quality.toLowerCase();
-                      if (q.contains('4k') || q.contains('2160')) {
-                        qualIcon = CupertinoIcons.star_circle_fill;
-                      } else if (q.contains('1080')) {
-                        qualIcon = CupertinoIcons.check_mark_circled_solid;
-                      } else if (q.contains('720')) {
-                        qualIcon = CupertinoIcons.tv_fill;
-                      }
-
-                      final label =
-                          '${s.quality.isNotEmpty ? "${s.quality} · " : ""}${s.source}';
-
-                      return _sheetTrackTile(
-                        label: label,
-                        isActive: active,
-                        icon: qualIcon,
-                        cs: cs,
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          if (!active) {
-                            setState(() {
-                              _selectedSource = s;
-                              _loading = true;
-                              _error = false;
-                            });
-                            _initPlayer(s.url);
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Change Server'),
+        message: const Text('Select streaming provider'),
+        actions: _sources.map((s) {
+          final active = s == _selectedSource;
+          final label = '${s.quality.isNotEmpty ? "${s.quality} · " : ""}${s.source}';
+          
+          return CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (!active) {
+                setState(() {
+                  _selectedSource = s;
+                  _loading = true;
+                  _error = false;
+                });
+                _initPlayer(s.url);
+              }
+            },
+            child: Text(
+              '$label ${active ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
-          ),
+          );
+        }).toList(),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1276,69 +1222,38 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       return;
     }
 
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final videoTracks = _mediaInfo.video as List;
     final activeTracks = _videoPlayerController?.getActiveVideoTracks() ?? [];
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: isDark
-                ? CupertinoColors.black.withValues(alpha: 0.8)
-                : cs.surface.withValues(alpha: 0.8),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Center(child: _dragHandle()),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Video Quality',
-                      style: GoogleFonts.dmSerifDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: videoTracks.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final track = videoTracks[index];
-                          final trackId = track.index ?? index;
-                          final isActive = activeTracks.contains(trackId);
-                          final codec = track.codec ?? 'Unknown';
-                          final label = 'Track ${index + 1} ($codec)';
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Internal Video Tracks'),
+        message: const Text('Select video stream track'),
+        actions: List.generate(videoTracks.length, (index) {
+          final track = videoTracks[index];
+          final trackId = track.index ?? index;
+          final isActive = activeTracks.contains(trackId);
+          final codec = track.codec ?? 'Unknown';
+          final label = 'Track ${index + 1} ($codec)';
 
-                          return _sheetTrackTile(
-                            label: label,
-                            isActive: isActive,
-                            icon: CupertinoIcons.videocam,
-                            cs: cs,
-                            onTap: () {
-                              _videoPlayerController?.setVideoTracks([trackId]);
-                              Navigator.pop(ctx);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setVideoTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '$label ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1352,69 +1267,37 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       return;
     }
 
-    final cs = CupertinoTheme.of(context).colorScheme;
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final audioTracks = _mediaInfo.audio as List;
     final activeTracks = _videoPlayerController?.getActiveAudioTracks() ?? [];
 
     showCupertinoModalPopup(
       context: context,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: isDark
-                ? CupertinoColors.black.withValues(alpha: 0.8)
-                : cs.surface.withValues(alpha: 0.8),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Center(child: _dragHandle()),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Audio Tracks',
-                      style: GoogleFonts.dmSerifDisplay(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: audioTracks.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final track = audioTracks[index];
-                          final trackId = track.index ?? index;
-                          final lang = track.metadata?['language'] ??
-                              'Track ${index + 1}';
-                          final isActive = activeTracks.contains(trackId);
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Audio Tracks'),
+        message: const Text('Select embedded audio channel'),
+        actions: List.generate(audioTracks.length, (index) {
+          final track = audioTracks[index];
+          final trackId = track.index ?? index;
+          final lang = track.metadata?['language'] ?? 'Track ${index + 1}';
+          final isActive = activeTracks.contains(trackId);
 
-                          return _sheetTrackTile(
-                            label: '$lang (${track.codec ?? "Unknown"})',
-                            isActive: isActive,
-                            icon: CupertinoIcons.waveform,
-                            cs: cs,
-                            onTap: () {
-                              _videoPlayerController?.setAudioTracks([trackId]);
-                              Navigator.pop(ctx);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setAudioTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '$lang (${track.codec ?? "Unknown"}) ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-          ),
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -1443,23 +1326,23 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
     showCupertinoDialog(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Playback Error'),
+        title: const Text('Playback Interrupted'),
         content: Text(message),
         actions: [
           CupertinoDialogAction(
-            child: const Text('Go Back'),
             onPressed: () {
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
+            child: const Text('Go Back'),
           ),
           CupertinoDialogAction(
             isDefaultAction: true,
-            child: const Text('Retry'),
             onPressed: () {
               Navigator.pop(ctx);
               _loadPlayback();
             },
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -1495,11 +1378,11 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isDark
-              ? CupertinoColors.white.withValues(alpha: 0.05)
-              : CupertinoColors.black.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(14),
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 4.0,
+          shadowOffset: 2.0,
         ),
         child: Row(
           children: [
@@ -1507,25 +1390,26 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: theme.primaryColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: CupertinoColors.black, width: 1.5),
               ),
-              child: Icon(icon, color: theme.primaryColor, size: 18),
+              child: Icon(icon, color: isDark ? CupertinoColors.black : CupertinoColors.white, size: 18),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                label.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
                   color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 ),
               ),
             ),
-            const Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
+            Icon(
+              FluentIcons.chevron_right_24_regular,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
               size: 16,
             ),
           ],
@@ -1548,35 +1432,29 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
       onPressed: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
           color: isActive
-              ? theme.primaryColor.withValues(alpha: 0.12)
-              : (isDark
-                  ? CupertinoColors.white.withValues(alpha: 0.05)
-                  : CupertinoColors.black.withValues(alpha: 0.05)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isActive
-                ? theme.primaryColor.withValues(alpha: 0.3)
-                : CupertinoColors.transparent,
-            width: 1,
-          ),
+              ? AppTheme.neonYellow
+              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+          borderRadius: 4.0,
+          shadowOffset: isActive ? 2.5 : 1.5,
         ),
         child: Row(
           children: [
             Icon(
-              isActive ? CupertinoIcons.checkmark_circle_fill : icon,
-              color: isActive ? theme.primaryColor : CupertinoColors.systemGrey,
+              isActive ? FluentIcons.checkmark_circle_24_filled : icon,
+              color: CupertinoColors.black,
               size: 20,
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                label.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: CupertinoColors.black,
                 ),
               ),
             ),
@@ -1584,15 +1462,15 @@ class _AnimePlayerScreenState extends State<AnimePlayerScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  color: CupertinoColors.black,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'Active',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: cs.primary,
+                  'ACTIVE',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.neonYellow,
                   ),
                 ),
               ),

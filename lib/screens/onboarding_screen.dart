@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -131,7 +132,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         child: Column(
                           children: [
                             _buildFeatureRow(
-                              CupertinoIcons.bolt_fill,
+                              FluentIcons.flash_24_filled,
                               const Color(0xFFC9A7FF),
                               'Ultra Fast Streaming',
                               'Experience lag-free 4K content globally.',
@@ -141,7 +142,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               child: Container(height: 1, color: CupertinoColors.systemGrey5.withValues(alpha: 0.2)),
                             ),
                             _buildFeatureRow(
-                              CupertinoIcons.link,
+                              FluentIcons.link_24_regular,
                               CupertinoColors.systemBlue,
                               'Instance Configuration',
                               'Link your backend to sync your private library.',
@@ -185,7 +186,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(CupertinoIcons.arrow_right, color: CupertinoColors.white, size: 20),
+                          const Icon(FluentIcons.arrow_right_24_regular, color: CupertinoColors.white, size: 20),
                         ],
                       ),
                     ),

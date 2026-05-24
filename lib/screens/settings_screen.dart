@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/settings_service.dart';
@@ -42,7 +43,7 @@ class SettingsScreen extends StatelessWidget {
                           children: [
                             if (auth.isAuthenticated)
                               IOSSettingsTile(
-                                icon: CupertinoIcons.person_circle,
+                                icon: FluentIcons.person_circle_24_regular,
                                 iconColor: CupertinoColors.systemGreen,
                                 title: user?.name ?? user?.username ?? 'User',
                                 subtitle: user?.email,
@@ -55,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
                               )
                             else
                               IOSSettingsTile(
-                                icon: CupertinoIcons.person_crop_circle_badge_plus,
+                                icon: FluentIcons.person_add_24_regular,
                                 iconColor: theme.primaryColor,
                                 title: 'Sign In / Sign Up',
                                 subtitle: 'Sync your history & bookmarks',
@@ -69,8 +70,8 @@ class SettingsScreen extends StatelessWidget {
                                 final sync = SyncService.instance;
                                 return IOSSettingsTile(
                                   icon: sync.isSyncing 
-                                    ? CupertinoIcons.arrow_2_circlepath 
-                                    : CupertinoIcons.cloud_fill,
+                                    ? FluentIcons.arrow_sync_24_filled 
+                                    : FluentIcons.cloud_24_filled,
                                   iconColor: sync.isSyncing 
                                     ? CupertinoColors.systemOrange 
                                     : CupertinoColors.systemBlue,
@@ -95,14 +96,14 @@ class SettingsScreen extends StatelessWidget {
                       title: 'Appearance',
                       children: [
                         IOSSettingsTile(
-                          icon: CupertinoIcons.brightness,
+                          icon: FluentIcons.brightness_high_24_regular,
                           iconColor: CupertinoColors.systemPurple,
                           title: 'Theme Mode',
                           subtitle: _getThemeModeLabel(settings.themeMode),
                           onTap: () => _showThemePicker(context),
                         ),
                         IOSSettingsTile(
-                          icon: CupertinoIcons.textformat,
+                          icon: FluentIcons.text_font_24_regular,
                           iconColor: CupertinoColors.systemBlue,
                           title: 'Custom Font',
                           subtitle: settings.customFont,
@@ -110,23 +111,12 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    IOSSettingsGroup(
-                      title: 'Music Experience',
-                      children: [
-                        IOSSettingsSwitch(
-                          icon: CupertinoIcons.infinite,
-                          iconColor: CupertinoColors.systemPink,
-                          title: 'Auto Queue',
-                          value: settings.autoQueue,
-                          onChanged: (val) => settings.setAutoQueue(val),
-                        ),
-                      ],
-                    ),
+
                     IOSSettingsGroup(
                       title: 'System',
                       children: [
                         IOSSettingsTile(
-                          icon: CupertinoIcons.trash,
+                          icon: FluentIcons.delete_24_regular,
                           iconColor: CupertinoColors.systemRed,
                           title: 'Clear Cache',
                           subtitle: 'Free up storage space',
@@ -138,7 +128,7 @@ class SettingsScreen extends StatelessWidget {
                       title: 'Community',
                       children: [
                         IOSSettingsTile(
-                          icon: CupertinoIcons.paperplane_fill,
+                          icon: FluentIcons.send_24_filled,
                           iconColor: const Color(0xFF229ED9),
                           title: 'Join Telegram',
                           subtitle: 'Stay updated with Luxa',
@@ -153,17 +143,17 @@ class SettingsScreen extends StatelessWidget {
                       title: 'About',
                       children: [
                         IOSSettingsTile(
-                          icon: CupertinoIcons.info,
+                          icon: FluentIcons.info_24_regular,
                           iconColor: CupertinoColors.systemGrey,
                           title: 'App Version',
                           subtitle: settings.appVersion,
                           onTap: () {},
                         ),
                         IOSSettingsTile(
-                          icon: CupertinoIcons.heart_fill,
+                          icon: FluentIcons.heart_24_filled,
                           iconColor: CupertinoColors.systemRed,
                           title: 'Luxa Premium',
-                          subtitle: 'You are using version 2.3.0',
+                          subtitle: 'You are using version 2.6.0',
                           onTap: () {},
                         ),
                       ],
@@ -188,24 +178,24 @@ class SettingsScreen extends StatelessWidget {
   void _showThemePicker(BuildContext context) {
     showCupertinoModalPopup(
       context: context,
-      builder: (context) => CupertinoActionSheet(
+      builder: (context) => CompactActionSheet(
         title: const Text('Select Theme'),
         actions: [
-          CupertinoActionSheetAction(
+          CompactActionSheetAction(
             onPressed: () {
               SettingsService.instance.setThemeMode(0);
               Navigator.pop(context);
             },
             child: const Text('System Default'),
           ),
-          CupertinoActionSheetAction(
+          CompactActionSheetAction(
             onPressed: () {
               SettingsService.instance.setThemeMode(2);
               Navigator.pop(context);
             },
             child: const Text('Light'),
           ),
-          CupertinoActionSheetAction(
+          CompactActionSheetAction(
             onPressed: () {
               SettingsService.instance.setThemeMode(1);
               Navigator.pop(context);
@@ -213,7 +203,7 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('Dark'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: CompactActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
@@ -225,7 +215,7 @@ class SettingsScreen extends StatelessWidget {
   void _showFontPicker(BuildContext context) {
     showCupertinoModalPopup(
       context: context,
-      builder: (context) => CupertinoActionSheet(
+      builder: (context) => CompactActionSheet(
         title: const Text('Select Font'),
         actions:
             [
@@ -238,7 +228,7 @@ class SettingsScreen extends StatelessWidget {
                   'Montserrat',
                 ]
                 .map(
-                  (font) => CupertinoActionSheetAction(
+                  (font) => CompactActionSheetAction(
                     onPressed: () {
                       SettingsService.instance.setCustomFont(font);
                       Navigator.pop(context);
@@ -252,7 +242,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 )
                 .toList(),
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: CompactActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),

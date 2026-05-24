@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 
@@ -189,7 +190,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       _buildField(
                         controller: _nameCtrl,
                         placeholder: 'John Doe',
-                        icon: CupertinoIcons.person_crop_circle,
+                        icon: FluentIcons.person_circle_24_regular,
                         isDark: isDark,
                         primary: primary,
                       ),
@@ -200,7 +201,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       _buildField(
                         controller: _usernameCtrl,
                         placeholder: 'johndoe',
-                        icon: CupertinoIcons.at,
+                        icon: FluentIcons.mention_24_regular,
                         isDark: isDark,
                         primary: primary,
                       ),
@@ -213,7 +214,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _buildField(
                       controller: _emailCtrl,
                       placeholder: _isLogin ? 'you@example.com' : 'you@example.com',
-                      icon: _isLogin ? CupertinoIcons.person : CupertinoIcons.mail,
+                      icon: _isLogin ? FluentIcons.person_24_regular : FluentIcons.mail_24_regular,
                       type: TextInputType.emailAddress,
                       isDark: isDark,
                       primary: primary,
@@ -226,7 +227,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _buildField(
                       controller: _passwordCtrl,
                       placeholder: '••••••••',
-                      icon: CupertinoIcons.lock,
+                      icon: FluentIcons.lock_closed_24_regular,
                       obscure: _obscurePassword,
                       isDark: isDark,
                       primary: primary,
@@ -237,8 +238,8 @@ class _AuthScreenState extends State<AuthScreen> {
                             setState(() => _obscurePassword = !_obscurePassword),
                         child: Icon(
                           _obscurePassword
-                              ? CupertinoIcons.eye
-                              : CupertinoIcons.eye_slash,
+                              ? FluentIcons.eye_24_regular
+                              : FluentIcons.eye_off_24_regular,
                           size: 18,
                           color: isDark
                               ? CupertinoColors.systemGrey
@@ -263,7 +264,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         child: Row(
                           children: [
                             const Icon(
-                              CupertinoIcons.exclamationmark_circle,
+                              FluentIcons.error_circle_24_regular,
                               color: CupertinoColors.systemRed,
                               size: 16,
                             ),

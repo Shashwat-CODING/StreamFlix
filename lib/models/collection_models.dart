@@ -1,41 +1,4 @@
 import '../models/media_item.dart';
-import '../models/song_model.dart';
-
-class MusicPlaylist {
-  final String id;
-  final String name;
-  final String? description;
-  final List<SongModel> songs;
-  final DateTime createdAt;
-
-  MusicPlaylist({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.songs,
-    required this.createdAt,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'description': description,
-    'songs': songs.map((s) => s.toJson()).toList(),
-    'tracks': songs.map((s) => s.toJson()).toList(),
-    'createdAt': createdAt.toIso8601String(),
-  };
-
-  factory MusicPlaylist.fromJson(Map<String, dynamic> json) {
-    final songsList = json['tracks'] ?? json['songs'] ?? [];
-    return MusicPlaylist(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      songs: (songsList as List).map((s) => SongModel.fromJson(s)).toList(),
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
-    );
-  }
-}
 
 class MediaCollection {
   final String id;

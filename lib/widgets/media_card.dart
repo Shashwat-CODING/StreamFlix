@@ -1,9 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../models/media_item.dart';
 import 'shimmer_placeholder.dart';
+import '../theme/app_theme.dart';
 
 class MediaCard extends StatelessWidget {
   final MediaItem item;
@@ -21,88 +22,98 @@ class MediaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
-        children: [
-          // Poster Image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: item.fullPosterUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: item.fullPosterUrl,
-                    width: width,
-                    height: height,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        ShimmerPlaceholder(width: width, height: height),
-                    errorWidget: (_, _, _) => _placeholder(),
-                  )
-                : _placeholder(),
-          ),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+          borderRadius: 12.0,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12.0),
+          child: Stack(
+            children: [
+              // Poster Image
+              Positioned.fill(
+                child: item.fullPosterUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: item.fullPosterUrl,
+                        width: width,
+                        height: height,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) =>
+                            ShimmerPlaceholder(width: width, height: height),
+                        errorWidget: (_, _, _) => _placeholder(),
+                      )
+                    : _placeholder(),
+              ),
 
-          // Bottom Gradient Overlay
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0.5, 1.0],
-                    colors: [CupertinoColors.transparent, CupertinoColors.black.withValues(alpha: 0.9)],
+              // Bottom Gradient Overlay
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.6, 1.0],
+                      colors: [CupertinoColors.transparent, CupertinoColors.black.withValues(alpha: 0.85)],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // Overlay Content
-          Positioned(
-            bottom: 8,
-            left: 8,
-            right: 8,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (item.voteAverage > 0) ...[
-                  Row(
-                    children: [
-                      const Icon(
-                        CupertinoIcons.star_fill,
-                        color: Color(0xFFFFC107),
-                        size: 10,
+              // Overlay Content
+              Positioned(
+                bottom: 8,
+                left: 8,
+                right: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (item.voteAverage > 0) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            FluentIcons.star_24_filled,
+                            color: CupertinoColors.systemYellow,
+                            size: 10,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.ratingStr,
+                            style: const TextStyle(
+                              color: CupertinoColors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.ratingStr,
-                        style: const TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const SizedBox(height: 4),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                ],
-                Text(
-                  item.title,
-                  style: GoogleFonts.outfit(
-                    color: CupertinoColors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.05, end: 0);
   }
@@ -112,7 +123,7 @@ class MediaCard extends StatelessWidget {
       width: width,
       height: height,
       color: const Color(0xFF1C1C1E),
-      child: const Icon(CupertinoIcons.film, color: Color(0x3DFFFFFF), size: 32),
+      child: const Icon(FluentIcons.movies_and_tv_24_regular, color: Color(0x3DFFFFFF), size: 32),
     );
   }
 }
@@ -147,15 +158,16 @@ class CategoryRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.2,
                   color: onSurface,
                 ),
               ),
-              const Icon(
-                CupertinoIcons.chevron_forward,
-                color: CupertinoColors.systemGrey,
+              Icon(
+                FluentIcons.chevron_right_24_regular,
+                color: onSurface,
                 size: 16,
               ),
             ],
@@ -189,4 +201,3 @@ class CategoryRow extends StatelessWidget {
     );
   }
 }
-

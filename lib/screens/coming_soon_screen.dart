@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -43,7 +44,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
         border: null,
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: const Icon(CupertinoIcons.chevron_back),
+          child: const Icon(FluentIcons.chevron_left_24_regular),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -86,7 +87,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                 ),
                 child: Center(
                   child: Icon(
-                    CupertinoIcons.sparkles,
+                    FluentIcons.sparkle_24_regular,
                     color: primary,
                     size: 40,
                   ),
@@ -156,7 +157,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(CupertinoIcons.arrow_left, size: 18),
+                        const Icon(FluentIcons.arrow_left_24_regular, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'Go Back',

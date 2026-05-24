@@ -1,50 +1,38 @@
-import 'dart:ui';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:audio_service/audio_service.dart' hide MediaItem;
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fvp/fvp.dart' as fvp;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
-import 'screens/tvshows_screen.dart';
 import 'screens/livetv_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/library_screen.dart';
-import 'screens/games_screen.dart';
-import 'screens/music_screen.dart';
 import 'screens/arts_screen.dart';
-import 'screens/music_player_screen.dart';
-import 'services/music_service.dart';
-import 'screens/onboarding_screen.dart';
 import 'screens/permission_gate_screen.dart';
 import 'screens/anime_screen.dart';
 import 'screens/detail_screen.dart';
 import 'models/media_item.dart';
 
 import 'services/watch_history.dart';
-import 'services/music_history.dart';
 import 'services/bookmark_service.dart';
 import 'services/api_service.dart';
 import 'services/streaming_service.dart';
 import 'services/ad_service.dart';
 import 'services/deeplink_service.dart';
 import 'services/window_service.dart';
-import 'models/song_model.dart';
-import 'widgets/mini_player_wrapper.dart';
 import 'services/settings_service.dart';
 import 'services/collection_service.dart';
 import 'services/auth_service.dart';
 import 'services/sync_service.dart';
 import 'screens/settings_screen.dart';
 import 'screens/auth_screen.dart';
-import 'widgets/ios_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -57,14 +45,10 @@ void main() async {
   }
   fvp.registerWith(options: {'video.decoders': ['D3D11', 'NVDEC', 'FFmpeg']});
   await WatchHistory.load();
-  await MusicHistory.load();
   await BookmarkService.init();
   await ApiService.instance.init();
   await WindowService.init();
   await StreamingService.instance.initDownloads();
-  
-  // Initialize Audio Service for background playback
-  await MusicService.instance.init();
   
   // Initialize Settings
   await SettingsService.instance.init();
@@ -183,15 +167,12 @@ class _NavItem {
 }
 
 const List<_NavItem> _mainNavItems = [
-  _NavItem(icon: CupertinoIcons.house, selectedIcon: CupertinoIcons.house_fill, label: 'Home', screenIndex: 0),
-  _NavItem(icon: CupertinoIcons.tv, selectedIcon: CupertinoIcons.tv_fill, label: 'TV', screenIndex: 1),
-  _NavItem(icon: CupertinoIcons.music_note_2, selectedIcon: CupertinoIcons.music_albums_fill, label: 'Music', screenIndex: 2),
-  _NavItem(icon: CupertinoIcons.sparkles, selectedIcon: CupertinoIcons.sparkles, label: 'Anime', screenIndex: 3),
-  _NavItem(icon: CupertinoIcons.square_stack_3d_up, selectedIcon: CupertinoIcons.square_stack_3d_up_fill, label: 'Library', screenIndex: 4),
-  _NavItem(icon: CupertinoIcons.play_rectangle, selectedIcon: CupertinoIcons.play_rectangle_fill, label: 'Live', screenIndex: 5),
-  _NavItem(icon: CupertinoIcons.gamecontroller, selectedIcon: CupertinoIcons.gamecontroller_fill, label: 'Games', screenIndex: 6),
-  _NavItem(icon: CupertinoIcons.photo, selectedIcon: CupertinoIcons.photo_fill, label: 'Arts', screenIndex: 7),
-  _NavItem(icon: CupertinoIcons.settings, selectedIcon: CupertinoIcons.settings, label: 'Settings', screenIndex: 8),
+  _NavItem(icon: FluentIcons.home_24_regular, selectedIcon: FluentIcons.home_24_filled, label: 'Home', screenIndex: 0),
+  _NavItem(icon: FluentIcons.sparkle_24_regular, selectedIcon: FluentIcons.sparkle_24_filled, label: 'Anime', screenIndex: 1),
+  _NavItem(icon: FluentIcons.library_24_regular, selectedIcon: FluentIcons.library_24_filled, label: 'Library', screenIndex: 2),
+  _NavItem(icon: FluentIcons.live_24_regular, selectedIcon: FluentIcons.live_24_filled, label: 'Live', screenIndex: 3),
+  _NavItem(icon: FluentIcons.image_24_regular, selectedIcon: FluentIcons.image_24_filled, label: 'Arts', screenIndex: 4),
+  _NavItem(icon: FluentIcons.settings_24_regular, selectedIcon: FluentIcons.settings_24_filled, label: 'Settings', screenIndex: 5),
 ];
 
 class MainNavigation extends StatefulWidget {
@@ -222,8 +203,6 @@ class _MainNavigationState extends State<MainNavigation> {
           CupertinoPageRoute(builder: (_) => const SearchScreen()),
         ),
       ),
-      const TvShowsScreen(),
-      const MusicScreen(),
       AnimeScreen(
         onSearch: () => Navigator.of(context, rootNavigator: true).push(
           CupertinoPageRoute(builder: (_) => const AnimeSearchScreen()),
@@ -235,16 +214,100 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ),
       const LiveTvScreen(),
-      const GamesScreen(),
       const ArtsScreen(),
       const SettingsScreen(),
     ];
+  }
+
+  Widget _buildSidebar(CupertinoThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999);
+
+    return Container(
+      width: 250,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Logo/Brand
+          Padding(
+            padding: const EdgeInsets.only(left: 12, bottom: 24, top: 8),
+            child: Text(
+              'LUXA',
+              style: GoogleFonts.outfit(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          // Nav Items
+          Expanded(
+            child: ListView.separated(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _mainNavItems.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final item = _mainNavItems[i];
+                final active = _idx == i;
+
+                return GestureDetector(
+                  onTap: () => setState(() {
+                    _idx = i;
+                    _navigatorKey.currentState?.popUntil((r) => r.isFirst);
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: active
+                        ? BoxDecoration(
+                            color: theme.primaryColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8.0),
+                          )
+                        : const BoxDecoration(
+                            color: CupertinoColors.transparent,
+                          ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          active ? item.selectedIcon : item.icon,
+                          color: active ? theme.primaryColor : inactiveColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            style: GoogleFonts.inter(
+                              color: active ? theme.primaryColor : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width > 950;
 
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
@@ -254,34 +317,40 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
     );
 
+    if (isWide) {
+      return CupertinoPageScaffold(
+        backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+        child: Row(
+          children: [
+            _buildSidebar(theme),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(0, 16, 16, 16),
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
+                  color: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
+                  borderRadius: 12.0,
+                  hasShadow: false,
+                  hasBorder: false,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildNavigator(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return CupertinoPageScaffold(
-      child: Stack(
+      child: Column(
         children: [
-          Row(
-            children: [
-              _buildSidebar(theme),
-              Expanded(child: _buildNavigator()),
-            ],
-          ),
-          ListenableBuilder(
-            listenable: MusicService.instance,
-            builder: (context, _) {
-              final song = MusicService.instance.currentSong;
-              if (song == null) return const SizedBox.shrink();
-              return Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MiniPlayer(song: song),
-              );
-            },
-          ),
+          Expanded(child: _buildNavigator()),
+          _buildBottomBar(theme),
         ],
       ),
     );
   }
-
-
 
   Widget _buildNavigator() {
     return Navigator(
@@ -303,52 +372,71 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  Widget _buildSidebar(CupertinoThemeData theme) {
+  Widget _buildBottomBar(CupertinoThemeData theme) {
     final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      width: 40, // More compact width
-      child: Column(
-        children: [
-          const SizedBox(height: 60),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(vertical: 10), // Reduced vertical padding
-              child: Column(
-                children: List.generate(_mainNavItems.length, (i) {
-                  final item = _mainNavItems[i];
-                  final active = _idx == i;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10), // Reduced distancing
-                    child: GestureDetector(
-                      onTap: () => setState(() {
-                        _idx = i;
-                        _navigatorKey.currentState?.popUntil((r) => r.isFirst);
-                      }),
-                      behavior: HitTestBehavior.opaque,
-                      child: RotatedBox(
-                        quarterTurns: -1,
-                        child: Text(
-                          item.label.toUpperCase(),
-                          style: theme.textTheme.textStyle.copyWith(
-                            color: active ? theme.primaryColor : CupertinoColors.systemGrey,
-                            fontWeight: active ? FontWeight.bold : FontWeight.w600,
-                            letterSpacing: 2.0, // Reduced letter spacing
-                            fontSize: 11, // Smaller font size
-                          ),
-                        ),
-                      ),
-                    ).animate(target: active ? 1 : 0).scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05)),
-                  );
-                }),
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          height: 50 + bottomPadding,
+          padding: EdgeInsets.only(bottom: bottomPadding),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xCC0A0A0A) : const Color(0xCCFFFFFF),
+            border: Border(
+              top: BorderSide(
+                color: isDark ? const Color(0x15FFFFFF) : const Color(0x15000000),
+                width: 0.5,
               ),
             ),
           ),
-          const SizedBox(height: 20),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(_mainNavItems.length, (i) {
+              final item = _mainNavItems[i];
+              final active = _idx == i;
+              final activeColor = theme.primaryColor;
+              final inactiveColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF999999);
+              
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _idx = i;
+                    _navigatorKey.currentState?.popUntil((r) => r.isFirst);
+                  }),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 6),
+                      Icon(
+                        active ? item.selectedIcon : item.icon,
+                        color: active ? activeColor : inactiveColor,
+                        size: 20,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.label,
+                        style: GoogleFonts.inter(
+                          color: active ? activeColor : inactiveColor,
+                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                          fontSize: 9,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
-
 
   Future<void> _checkUpdate() async {
     final update = await ApiService.instance.checkForUpdate();

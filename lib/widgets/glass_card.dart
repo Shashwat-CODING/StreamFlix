@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import '../theme/app_theme.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -13,7 +13,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.borderRadius = 16,
+    this.borderRadius = 4.0,
     this.padding = const EdgeInsets.all(16),
     this.color,
     this.onTap,
@@ -23,31 +23,18 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            width: width,
-            height: height,
-            padding: padding,
-            decoration: BoxDecoration(
-              color: color ?? (isDark 
-                  ? CupertinoColors.white.withValues(alpha: 0.1) 
-                  : CupertinoColors.black.withValues(alpha: 0.05)),
-              borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(
-                color: (isDark ? CupertinoColors.white : CupertinoColors.black).withValues(alpha: 0.1),
-                width: 0.5,
-              ),
-            ),
-            child: child,
-          ),
+      child: Container(
+        width: width,
+        height: height,
+        padding: padding,
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: color,
+          borderRadius: borderRadius,
         ),
+        child: child,
       ),
     );
   }

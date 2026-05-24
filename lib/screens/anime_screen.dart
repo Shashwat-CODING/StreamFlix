@@ -1,14 +1,14 @@
-import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
 import 'detail_screen.dart';
-import 'search_screen.dart';
 import '../widgets/ios_widgets.dart';
+import '../theme/app_theme.dart';
 
 class AnimeScreen extends StatefulWidget {
   final VoidCallback onSearch;
@@ -26,7 +26,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
 
   int _carouselIndex = 0;
   Timer? _carouselTimer;
-  final PageController _carouselCtrl = PageController(viewportFraction: 0.9);
+  final PageController _carouselCtrl = PageController(viewportFraction: 1.0);
 
   @override
   void initState() {
@@ -72,27 +72,18 @@ class _AnimeScreenState extends State<AnimeScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return CupertinoPageScaffold(
+      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
       child: _loading
           ? const Center(child: IOSLoading(message: 'Gathering the best anime...'))
           : CustomScrollView(
               physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               slivers: [
-                CupertinoSliverNavigationBar(
-                  transitionBetweenRoutes: false,
-                  largeTitle: Text('Anime', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                  backgroundColor: isDark ? const Color(0xCC000000) : const Color(0xCCF2F2F7),
-                  border: null,
-                  trailing: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: widget.onSearch,
-                    child: const Icon(CupertinoIcons.search, size: 24),
-                  ),
-                ),
                 if (_trending.isNotEmpty)
                   SliverToBoxAdapter(
                     child: _buildCarousel(theme),
@@ -102,7 +93,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
                     (context, index) {
                       final category = _homeData.keys.elementAt(index);
                       final items = _homeData[category]!;
-                      return _buildCategoryGrid(category, items, theme);
+                      return _buildCategorySection(category, items, theme);
                     },
                     childCount: _homeData.length,
                   ),
@@ -114,156 +105,264 @@ class _AnimeScreenState extends State<AnimeScreen> {
   }
 
   Widget _buildCarousel(CupertinoThemeData theme) {
-    final items = _trending.take(6).toList();
+    final items = _trending.take(5).toList();
     final isDark = theme.brightness == Brightness.dark;
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width > 800;
-    final carouselHeight = isDesktop ? 350.0 : 220.0;
+    final screenH = MediaQuery.of(context).size.height;
+    final cardH = (screenH * 0.65).clamp(420.0, 700.0);
 
-    return Column(
+    return Stack(
+      alignment: Alignment.bottomCenter,
       children: [
-        const SizedBox(height: 12),
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: SizedBox(
-              height: carouselHeight,
-              child: PageView.builder(
-                controller: _carouselCtrl,
-                onPageChanged: (i) => setState(() => _carouselIndex = i),
-                itemCount: items.length,
-                itemBuilder: (_, i) {
-                  final item = items[i];
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
-                      CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+        SizedBox(
+          height: cardH,
+          child: PageView.builder(
+            controller: _carouselCtrl,
+            onPageChanged: (i) => setState(() => _carouselIndex = i),
+            itemCount: items.length,
+            itemBuilder: (_, i) {
+              final item = items[i];
+              return GestureDetector(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: item.fullPosterUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => Container(color: isDark ? const Color(0xFF121212) : const Color(0xFFE5E5EA)),
+                      errorWidget: (_, _, _) => Container(color: isDark ? const Color(0xFF121212) : const Color(0xFFE5E5EA)),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedNetworkImage(
-                              imageUrl: item.fullPosterUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (_, _) => Container(color: CupertinoColors.black.withValues(alpha: 0.12)),
-                            ),
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [const Color(0x00000000), CupertinoColors.black.withValues(alpha: 0.87)],
-                                  stops: [0.4, 1.0],
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              left: 20,
-                              right: 20,
-                              bottom: 20,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    style: GoogleFonts.outfit(color: CupertinoColors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.0, 0.3, 0.6, 1.0],
+                          colors: [
+                            CupertinoColors.black.withValues(alpha: 0.2),
+                            CupertinoColors.transparent,
+                            CupertinoColors.black.withValues(alpha: 0.55),
+                            CupertinoColors.black,
                           ],
                         ),
                       ),
                     ),
-                  );
-                },
+                    Positioned(
+                      left: 24,
+                      right: 24,
+                      bottom: 24,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                           Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppTheme.neonYellow,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'ANIME',
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            item.title.toUpperCase(),
+                            style: const TextStyle(
+                              color: CupertinoColors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                              height: 1.1,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.of(context, rootNavigator: true).push(
+                                    CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+                                  ),
+                                  child: Container(
+                                    height: 44,
+                                    decoration: AppTheme.brutalistDecoration(
+                                      context: context,
+                                      color: AppTheme.neonYellow,
+                                      borderRadius: 12.0,
+                                      shadowOffset: 0.0,
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(FluentIcons.play_24_filled, color: CupertinoColors.white, size: 18),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'PLAY NOW',
+                                          style: TextStyle(
+                                            color: CupertinoColors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.of(context, rootNavigator: true).push(
+                                    CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
+                                  ),
+                                  child: Container(
+                                    height: 44,
+                                    decoration: AppTheme.brutalistDecoration(
+                                      context: context,
+                                      color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                                      borderRadius: 12.0,
+                                      shadowOffset: 0.0,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(FluentIcons.info_24_regular, color: isDark ? CupertinoColors.white : CupertinoColors.black, size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'INFO',
+                                          style: TextStyle(
+                                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        // Dot indicators
+        Positioned(
+          bottom: 96,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(items.length, (i) {
+              final active = i == _carouselIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.only(right: 6),
+                width: active ? 16 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: active
+                      ? AppTheme.neonYellow
+                      : CupertinoColors.white.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+        ),
+        // Floating search button top right
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          right: 16,
+          child: GestureDetector(
+            onTap: widget.onSearch,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: AppTheme.brutalistDecoration(
+                context: context,
+                color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+                borderRadius: 12.0,
+                shadowOffset: 0.0,
+              ),
+              child: Icon(
+                FluentIcons.search_24_regular, 
+                size: 18, 
+                color: CupertinoColors.white
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(items.length, (i) {
-            final active = i == _carouselIndex;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: active ? 18 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: active ? theme.primaryColor : (isDark ? CupertinoColors.white.withValues(alpha: 0.24) : CupertinoColors.black.withValues(alpha: 0.12)),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildCategoryGrid(String title, List<MediaItem> items, CupertinoThemeData theme) {
+  Widget _buildCategorySection(String title, List<MediaItem> items, CupertinoThemeData theme) {
+    if (items.isEmpty) return const SizedBox.shrink();
     final isDark = theme.brightness == Brightness.dark;
-    final width = MediaQuery.of(context).size.width;
-    final crossAxisCount = (width / 200).floor().clamp(2, 8);
+    final onSurface = isDark ? CupertinoColors.white : CupertinoColors.black;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(CupertinoIcons.sparkles, size: 20, color: theme.primaryColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                    color: onSurface,
                   ),
-                ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final gridWidth = constraints.maxWidth;
-                  final crossAxisCount = (gridWidth / 200).floor().clamp(2, 8);
-                  final cellWidth = (gridWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
-                  final childAspectRatio = cellWidth / (cellWidth * 1.5 + 72);
-
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: childAspectRatio,
-                    ),
-                    itemCount: items.length.clamp(0, 10), // Limit per category for home
-                    itemBuilder: (context, index) => _AnimeGridCard(item: items[index]),
-                  );
-                },
+              Text(
+                'SEE ALL',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? AppTheme.neonYellow : CupertinoColors.black,
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-          ],
+            ],
+          ),
         ),
-      ),
+        SizedBox(
+          height: 235,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => SizedBox(
+              width: 110,
+              child: _AnimeGridCard(item: items[i]),
+            ),
+          ),
+        ),
+      ],
     ).animate().fadeIn(duration: 400.ms, delay: 100.ms);
   }
 }
@@ -275,6 +374,8 @@ class _AnimeGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasImage = item.fullPosterUrl.isNotEmpty;
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    
     return GestureDetector(
       onTap: () => Navigator.of(context, rootNavigator: true).push(
         CupertinoPageRoute(builder: (_) => DetailScreen(item: item)),
@@ -286,47 +387,57 @@ class _AnimeGridCard extends StatelessWidget {
             tag: 'anime_grid_${item.id}_${item.extras?['slug']}',
             child: AspectRatio(
               aspectRatio: 2 / 3,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: hasImage
-                    ? CachedNetworkImage(
-                        imageUrl: item.fullPosterUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(color: CupertinoColors.systemGrey6),
-                        errorWidget: (_, __, ___) => Container(
-                          color: CupertinoColors.systemGrey6,
-                          child: const Icon(CupertinoIcons.play_rectangle),
+              child: Container(
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
+                  color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                  borderRadius: 12.0,
+                  shadowOffset: 2.5,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: hasImage
+                      ? CachedNetworkImage(
+                          imageUrl: item.fullPosterUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA)),
+                          errorWidget: (_, __, ___) => Container(
+                            color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA),
+                            child: const Icon(FluentIcons.video_clip_24_regular, size: 24, color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      : Container(
+                          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA),
+                          child: const Icon(FluentIcons.video_clip_24_regular, size: 24, color: CupertinoColors.systemGrey),
                         ),
-                      )
-                    : Container(
-                        color: CupertinoColors.systemGrey6,
-                        child: const Icon(CupertinoIcons.play_rectangle),
-                      ),
+                ),
               ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            item.title,
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            item.title.toUpperCase(),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
               letterSpacing: -0.2,
             ),
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (item.extras?['quality'] != null || item.extras?['episode'] != null)
+          if (item.extras?['quality'] != null || item.extras?['episode'] != null) ...[
+            const SizedBox(height: 2),
             Text(
-              '${item.extras?['quality'] ?? ''} ${item.extras?['episode'] != null ? '· Ep ${item.extras?['episode']}' : ''}',
-              style: GoogleFonts.outfit(
-                fontSize: 11,
+              '${item.extras?['quality'] ?? ''} ${item.extras?['episode'] != null ? '· Ep ${item.extras?['episode']}' : ''}'.toUpperCase(),
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 10,
                 color: CupertinoColors.systemGrey,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.bold,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ],
         ],
       ),
     );
@@ -360,10 +471,13 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    
     return CupertinoPageScaffold(
+      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
       navigationBar: CupertinoNavigationBar(
         transitionBetweenRoutes: false,
-        middle: const Text('Search Anime'),
+        middle: Text('SEARCH ANIME', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
         trailing: _searching ? const CupertinoActivityIndicator() : null,
       ),
       child: SafeArea(
@@ -386,9 +500,9 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(CupertinoIcons.search, size: 64, color: CupertinoColors.systemGrey4),
+                              Icon(FluentIcons.search_24_regular, size: 64, color: CupertinoColors.systemGrey4),
                               const SizedBox(height: 16),
-                              Text('Search for your favorite anime', style: TextStyle(color: CupertinoColors.systemGrey)),
+                              Text('Search for your favorite anime'.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: CupertinoColors.systemGrey)),
                             ],
                           ),
                         )

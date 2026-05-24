@@ -2,23 +2,23 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/music_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:fvp/fvp.dart';
 
 import '../widgets/fvp_controls.dart';
 
 import '../widgets/ios_widgets.dart';
+import '../theme/app_theme.dart';
 import '../models/channel.dart';
 import '../utils/language_utils.dart';
 import '../widgets/native_ad_widget.dart';
 import '../widgets/banner_ad_widget.dart';
-import '../services/music_service.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 
@@ -44,6 +44,7 @@ class LivePlayerScreen extends StatefulWidget {
 
 class _LivePlayerScreenState extends State<LivePlayerScreen> {
   VideoPlayerController? _videoPlayerController;
+  dynamic _mediaInfo;
 
   bool _loading = true;
   bool _error = false;
@@ -60,6 +61,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
     if (!mounted) return;
     showCupertinoDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => CupertinoAlertDialog(
         content: Text(message),
         actions: [
@@ -74,7 +76,6 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
 
   @override
   void initState() {
-    MusicService.instance.stopMusic();
     super.initState();
     _currentChannel = widget.channel;
     _currentIdx = widget.initialIndex;
@@ -140,6 +141,9 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
       
       _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(stream.url), httpHeaders: headers);
       await _videoPlayerController!.initialize();
+      try {
+        _mediaInfo = _videoPlayerController!.getMediaInfo();
+      } catch (_) {}
       _videoPlayerController!.play();
 
       if (mounted) {
@@ -261,7 +265,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? CupertinoColors.black : theme.barBackgroundColor,
+      backgroundColor: isDark ? CupertinoColors.black : theme.scaffoldBackgroundColor,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 950;
@@ -401,18 +405,18 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _glassIconButton(
-            icon: CupertinoIcons.chevron_back,
+            icon: FluentIcons.chevron_left_24_regular,
             onPressed: () => Navigator.pop(context),
           ),
           Row(
             children: [
               _glassIconButton(
-                icon: CupertinoIcons.share,
+                icon: FluentIcons.share_24_regular,
                 onPressed: _shareChannel,
               ),
               const SizedBox(width: 8),
               _glassIconButton(
-                icon: CupertinoIcons.slider_horizontal_3,
+                icon: FluentIcons.settings_24_regular,
                 onPressed: _showSettingsSheet,
               ),
             ],
@@ -428,184 +432,130 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
   }
 
   void _showSettingsSheet() {
-    final cs = CupertinoTheme.of(context).colorScheme;
     showCupertinoModalPopup(
       context: context,
-      // backgroundColor: const Color(0x00000000),
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            color: CupertinoColors.black.withValues(alpha: 0.85),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Center(child: _dragHandle()),
-              const SizedBox(height: 20),
-              Text(
-                'Stream Settings',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  letterSpacing: -0.3,
-                  color: CupertinoColors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _sheetOption(
-                icon: CupertinoIcons.film,
-                label: 'Video Quality',
-                cs: cs,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showVideoTrackSelection();
-                },
-              ),
-              const SizedBox(height: 8),
-              _sheetOption(
-                icon: CupertinoIcons.music_note_2,
-                label: 'Audio Tracks',
-                cs: cs,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showAudioSelection();
-                },
-              ),
-            ],
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Stream Settings'),
+        message: const Text('Configure live stream properties'),
+        actions: [
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showVideoTrackSelection();
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(FluentIcons.movies_and_tv_24_regular, size: 16),
+                SizedBox(width: 8),
+                Text('Video Quality'),
+              ],
+            ),
           ),
+          CompactActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showAudioSelection();
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(FluentIcons.music_note_2_24_regular, size: 16),
+                SizedBox(width: 8),
+                Text('Audio Tracks'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CompactActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          isDefaultAction: true,
+          child: const Text('Cancel'),
         ),
-      ),
-        ),
-      ),
       ),
     );
   }
 
   void _showAudioSelection() {
-    _showToast('Audio track selection not supported in this player mode');
+    if (_mediaInfo == null || _mediaInfo.audio == null) {
+      _showToast('No internal audio tracks available for this stream.');
+      return;
+    }
+
+    final audioTracks = _mediaInfo.audio as List;
+    final activeTracks = _videoPlayerController?.getActiveAudioTracks() ?? [];
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Audio Tracks'),
+        message: const Text('Select embedded audio channel'),
+        actions: List.generate(audioTracks.length, (index) {
+          final track = audioTracks[index];
+          final trackId = track.index ?? index;
+          final lang = track.metadata?['language'] ?? 'Track ${index + 1}';
+          final isActive = activeTracks.contains(trackId);
+
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setAudioTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '$lang (${track.codec ?? "Unknown"}) ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   void _showVideoTrackSelection() {
-    _showToast('Video track selection not supported in this player mode');
-  }
+    if (_mediaInfo == null || _mediaInfo.video == null) {
+      _showToast('No video tracks available');
+      return;
+    }
 
-  Widget _dragHandle() {
-    return Container(
-      width: 40,
-      height: 5,
-      decoration: BoxDecoration(
-        color: CupertinoColors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
-  }
+    final videoTracks = _mediaInfo.video as List;
+    final activeTracks = _videoPlayerController?.getActiveVideoTracks() ?? [];
 
-  Widget _sheetOption({
-    required IconData icon,
-    required String label,
-    required CupertinoColorScheme cs,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: CupertinoColors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: cs.primary, size: 18),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.white,
-                ),
-              ),
-            ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.white.withValues(alpha: 0.3),
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CompactActionSheet(
+        title: const Text('Internal Video Tracks'),
+        message: const Text('Select video stream track'),
+        actions: List.generate(videoTracks.length, (index) {
+          final track = videoTracks[index];
+          final trackId = track.index ?? index;
+          final isActive = activeTracks.contains(trackId);
+          final codec = track.codec ?? 'Unknown';
+          final label = 'Track ${index + 1} ($codec)';
 
-  Widget _sheetTrackTile({
-    required String label,
-    required bool isActive,
-    required IconData icon,
-    required CupertinoColorScheme cs,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isActive
-              ? cs.primary.withValues(alpha: 0.12)
-              : CupertinoColors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: isActive
-              ? Border.all(color: cs.primary.withValues(alpha: 0.3), width: 1)
-              : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isActive ? CupertinoIcons.checkmark_circle_fill : icon,
-              color: isActive ? cs.primary : CupertinoColors.white.withValues(alpha: 0.5),
-              size: 20,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? cs.primary : CupertinoColors.white.withValues(alpha: 0.9),
-                ),
+          return CompactActionSheetAction(
+            onPressed: () {
+              _videoPlayerController?.setVideoTracks([trackId]);
+              Navigator.pop(ctx);
+            },
+            child: Text(
+              '$label ${isActive ? "✓" : ""}',
+              style: TextStyle(
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            if (isActive)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Active',
-                  style: GoogleFonts.outfit(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: cs.primary,
-                  ),
-                ),
-              ),
-          ],
+          );
+        }),
+        cancelButton: CompactActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -614,16 +564,32 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
   Widget _glassIconButton({
     required IconData icon,
     required VoidCallback onPressed,
-    double iconSize = 24,
+    double iconSize = 22,
   }) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
-      child: Icon(icon, color: CupertinoColors.white, size: iconSize),
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          color: isDark ? const Color(0x662C2C2E) : const Color(0x66FFFFFF),
+          child: CupertinoButton(
+            padding: const EdgeInsets.all(10),
+            minSize: 0,
+            onPressed: onPressed,
+            child: Icon(
+              icon,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              size: iconSize,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildChannelHeader(CupertinoColorScheme cs) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -633,16 +599,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
           Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(
-              color: CupertinoColors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: cs.shadow.withValues(alpha: 0.1),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+            decoration: AppTheme.brutalistDecoration(
+              context: context,
+              color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+              borderRadius: 12.0,
             ),
             padding: const EdgeInsets.all(10),
             child: _currentChannel.hasLogo
@@ -651,8 +611,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                     fit: BoxFit.contain,
                   )
                 : Icon(
-                    CupertinoIcons.play_rectangle_fill,
-                    color: cs.primary,
+                    FluentIcons.video_clip_24_filled,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
                     size: 36,
                   ),
           ),
@@ -667,12 +627,12 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                     _buildLiveBadge(),
                     const SizedBox(width: 8),
                     Text(
-                      _currentChannel.group ?? 'STREAM',
-                      style: GoogleFonts.outfit(
+                      (_currentChannel.group ?? 'STREAM').toUpperCase(),
+                      style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: cs.primary,
-                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.bold,
+                        color: theme.primaryColor,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ],
@@ -680,10 +640,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _currentChannel.name,
-                  style: GoogleFonts.outfit(
-                    fontSize: 26,
-                    color: cs.onSurface,
-                    letterSpacing: -0.5,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -701,21 +661,22 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: CupertinoColors.systemRed,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(100),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(CupertinoIcons.circle_fill, color: CupertinoColors.white, size: 6)
+          Icon(FluentIcons.circle_24_filled, color: CupertinoColors.white, size: 6)
               .animate(onPlay: (c) => c.repeat(reverse: true))
               .shimmer(duration: 1.seconds),
           const SizedBox(width: 4),
-          Text(
+          const Text(
             'LIVE',
-            style: GoogleFonts.outfit(
+            style: TextStyle(
               color: CupertinoColors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -734,8 +695,9 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
             children: [
               Text(
                 'Available Channels',
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 20,
+                  fontWeight: FontWeight.bold,
                   color: cs.onSurface,
                 ),
               ),
@@ -755,23 +717,19 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
           itemBuilder: (_, i) {
             final ch = widget.playlist![i];
             final active = i == _currentIdx;
+            final theme = CupertinoTheme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
             return CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () => _switchChannel(i),
-              child: AnimatedContainer(
-                duration: 200.ms,
+              child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
                   color: active
-                      ? cs.secondaryContainer
-                      : cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: active
-                        ? cs.primary.withValues(alpha: 0.2)
-                        : const Color(0x00000000),
-                    width: 1.5,
-                  ),
+                      ? AppTheme.neonYellow
+                      : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+                  borderRadius: 12.0,
                 ),
                 child: Row(
                   children: [
@@ -779,18 +737,22 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: CupertinoColors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark ? CupertinoColors.black : CupertinoColors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? CupertinoColors.systemGrey6 : CupertinoColors.systemGrey5,
+                          width: 1.0,
+                        ),
                       ),
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       child: ch.hasLogo
                           ? CachedNetworkImage(
                               imageUrl: ch.logoUrl!,
                               fit: BoxFit.contain,
                             )
                           : Icon(
-                              CupertinoIcons.tv_fill,
-                              color: cs.primary,
+                              FluentIcons.tv_24_filled,
+                              color: isDark ? CupertinoColors.white : CupertinoColors.black,
                               size: 22,
                             ),
                     ),
@@ -798,20 +760,18 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
                     Expanded(
                       child: Text(
                         ch.name,
-                        style: GoogleFonts.outfit(
-                          fontWeight: active
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontWeight: active ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 15,
                           color: active
-                              ? cs.onSecondaryContainer
-                              : cs.onSurface,
+                              ? CupertinoColors.white
+                              : (isDark ? CupertinoColors.white : CupertinoColors.black),
                         ),
                       ),
                     ),
                     if (active) ...[
                       const SizedBox(width: 8),
-                      Icon(CupertinoIcons.waveform, color: cs.primary, size: 24)
+                      const Icon(FluentIcons.sound_wave_circle_24_regular, color: CupertinoColors.white, size: 24)
                           .animate(onPlay: (c) => c.repeat(reverse: true))
                           .scaleY(begin: 0.8, end: 1.4),
                     ],
@@ -837,7 +797,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              CupertinoIcons.exclamationmark_circle,
+              FluentIcons.error_circle_24_regular,
               color: CupertinoColors.systemRed,
               size: 48,
             ),
@@ -857,7 +817,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(CupertinoIcons.refresh),
+                  const Icon(FluentIcons.arrow_clockwise_24_regular),
                   const SizedBox(width: 8),
                   const Text('Try Again'),
                 ],

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
 import 'detail_screen.dart';
@@ -223,7 +224,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(CupertinoIcons.search, size: 64, color: CupertinoColors.systemGrey3),
+          Icon(FluentIcons.search_24_regular, size: 64, color: CupertinoColors.systemGrey3),
           const SizedBox(height: 16),
           Text(
             'No results found',

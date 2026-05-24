@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../models/media_item.dart';
 import '../services/api_service.dart';
 import '../services/bookmark_service.dart';
@@ -16,9 +17,9 @@ import '../models/api_models.dart';
 import '../services/streaming_service.dart';
 import 'anime_player_screen.dart';
 import 'player_screen.dart';
-import '../widgets/mini_player_wrapper.dart';
 import '../services/collection_service.dart';
 import '../widgets/ios_widgets.dart';
+import '../theme/app_theme.dart';
 
 class DetailScreen extends StatefulWidget {
   final MediaItem item;
@@ -85,12 +86,12 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (_loading) {
-      return MiniPlayerWrapper(
-        child: CupertinoPageScaffold(
-          child: const Center(child: IOSLoading(message: 'Gathering metadata...')),
-        ),
+      return CupertinoPageScaffold(
+        backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+        child: const Center(child: IOSLoading(message: 'Gathering metadata...')),
       );
     }
 
@@ -107,24 +108,23 @@ class _DetailScreenState extends State<DetailScreen> {
       cast: [],
     );
 
-    return MiniPlayerWrapper(
-      child: CupertinoPageScaffold(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _DetailHeaderDelegate(
-                item: item,
-                isFavorite: _isFavorite,
-                onBack: () => Navigator.pop(context),
-                onBookmark: _toggleBookmark,
-                expandedHeight: MediaQuery.of(context).size.height * 0.45,
-              ),
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? AppTheme.pureBlack : AppTheme.creamBg,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _DetailHeaderDelegate(
+              item: item,
+              isFavorite: _isFavorite,
+              onBack: () => Navigator.pop(context),
+              onBookmark: _toggleBookmark,
+              expandedHeight: MediaQuery.of(context).size.height * 0.50,
             ),
-            SliverToBoxAdapter(child: _buildBody(item, theme)),
-          ],
-        ),
+          ),
+          SliverToBoxAdapter(child: _buildBody(item, theme)),
+        ],
       ),
     );
   }
@@ -133,115 +133,209 @@ class _DetailScreenState extends State<DetailScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title
+          Text(
+            item.title.toUpperCase(),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              height: 1.0,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Meta row
           Row(
             children: [
-              _MetaItem(icon: CupertinoIcons.star_fill, label: item.ratingStr, color: const Color(0xFFFFCB45)),
-              const SizedBox(width: 16),
-              _MetaItem(label: item.year),
-              const SizedBox(width: 16),
-              if ((item.runtime ?? 0) > 0) _MetaItem(label: '${item.runtime}m'),
+              const Icon(FluentIcons.star_24_filled, size: 13, color: AppTheme.neonYellow),
+              const SizedBox(width: 4),
+              Text(
+                item.ratingStr,
+                style: GoogleFonts.spaceGrotesk(color: isDark ? CupertinoColors.white : CupertinoColors.black, fontSize: 13, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(width: 10),
+              Container(width: 3, height: 3, decoration: const BoxDecoration(color: Color(0xFF6E6E73), shape: BoxShape.circle)),
+              const SizedBox(width: 10),
+              Text(
+                item.year,
+                style: GoogleFonts.spaceGrotesk(color: CupertinoColors.systemGrey, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              if ((item.runtime ?? 0) > 0) ...[
+                const SizedBox(width: 10),
+                Container(width: 3, height: 3, decoration: const BoxDecoration(color: Color(0xFF6E6E73), shape: BoxShape.circle)),
+                const SizedBox(width: 10),
+                Text(
+                  '${item.runtime}m',
+                  style: GoogleFonts.spaceGrotesk(color: CupertinoColors.systemGrey, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ],
             ],
           ),
+          if (item.genres.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: item.genres.map((genre) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: AppTheme.brutalistDecoration(
+                    context: context,
+                    color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                    borderRadius: 4.0,
+                    shadowOffset: 2.0,
+                  ),
+                  child: Text(
+                    genre.toUpperCase(),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
           const SizedBox(height: 24),
+          // Play button - full width prominent
+          GestureDetector(
+            onTap: () {
+              if (item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series')) {
+                _showEpisodeSelector(item);
+              } else {
+                AdService.showRewardedAd(
+                  context: context,
+                  onComplete: () {
+                    if (context.mounted) {
+                      if (item.mediaType == 'anime') {
+                        Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(
+                          builder: (_) => AnimePlayerScreen(
+                            item: item,
+                            slug: item.extras?['slug'] ?? '',
+                            type: 'movie',
+                          ),
+                        ));
+                      } else {
+                        Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(
+                          builder: (_) => PlayerScreen(item: item),
+                        ));
+                      }
+                    }
+                  },
+                );
+              }
+            },
+            child: Container(
+              height: 52,
+              decoration: AppTheme.brutalistDecoration(
+                context: context,
+                color: AppTheme.neonYellow,
+                borderRadius: 4.0,
+                shadowOffset: 3.5,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    (item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series'))
+                        ? FluentIcons.list_24_regular
+                        : FluentIcons.play_24_filled,
+                    size: 18,
+                    color: CupertinoColors.black,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    ((item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series'))
+                        ? 'EPISODES'
+                        : 'PLAY NOW').toUpperCase(),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      color: CupertinoColors.black,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Secondary actions row
           Row(
             children: [
               Expanded(
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    if (item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series')) {
-                      _showEpisodeSelector(item);
-                    } else {
-                      AdService.showRewardedAd(
-                        context: context,
-                        onComplete: () {
-                          if (context.mounted) {
-                            if (item.mediaType == 'anime') {
-                              Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(
-                                builder: (_) => AnimePlayerScreen(
-                                  item: item,
-                                  slug: item.extras?['slug'] ?? '',
-                                  type: 'movie',
-                                ),
-                              ));
-                            } else {
-                              Navigator.of(context, rootNavigator: true).push(CupertinoPageRoute(
-                                builder: (_) => PlayerScreen(item: item),
-                              ));
-                            }
-                          }
-                        },
-                      );
-                    }
-                  },
-                  color: theme.primaryColor,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                    Icon(
-                      (item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series')) 
-                        ? CupertinoIcons.list_bullet 
-                        : CupertinoIcons.play_fill, 
-                      size: 18, 
-                      color: CupertinoColors.white
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      (item.mediaType == 'tv' || (item.mediaType == 'anime' && item.extras?['anime_type'] == 'series')) 
-                        ? 'Episodes' 
-                        : 'Play', 
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: CupertinoColors.white)
-                    ),
-                    ],
-                  ),
+                child: _DetailActionBtn(
+                  icon: _isFavorite ? FluentIcons.heart_24_filled : FluentIcons.heart_24_regular,
+                  label: _isFavorite ? 'SAVED' : 'WATCHLIST',
+                  onPressed: _toggleBookmark,
+                  active: _isFavorite,
                 ),
               ),
               const SizedBox(width: 12),
-              _DetailActionBtn(
-                icon: _isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                onPressed: _toggleBookmark,
-                active: _isFavorite,
-              ),
-              _DetailActionBtn(
-                icon: CupertinoIcons.share,
-                onPressed: () {
-                  final url = '${ApiService.websiteUrl}/details?type=${item.mediaType}&id=${item.id}';
-                  Share.share('Check out "${item.title}" on Luxa!\n\nWatch here: $url');
-                },
+              Expanded(
+                child: _DetailActionBtn(
+                  icon: FluentIcons.share_24_regular,
+                  label: 'SHARE',
+                  onPressed: () {
+                    final url = '${ApiService.websiteUrl}/details?type=${item.mediaType}&id=${item.id}';
+                    Share.share('Check out "${item.title}" on Luxa!\n\nWatch here: $url');
+                  },
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
-          Text('Overview', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 28),
+          // Overview
           Text(
             item.overview ?? 'No description available.',
-            style: GoogleFonts.outfit(fontSize: 15, color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2, height: 1.5),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 14,
+              color: isDark ? const Color(0xFFAAAAAA) : const Color(0xFF333333),
+              height: 1.6,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           if (item.cast.isNotEmpty) ...[
             const SizedBox(height: 32),
-            Text('Top Cast', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            Text(
+              'CAST',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+            const SizedBox(height: 14),
             SizedBox(
               height: 110,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: item.cast.length.clamp(0, 10),
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (_, i) => _CastMember(cast: item.cast[i]),
               ),
             ),
           ],
           if (_similar.isNotEmpty) ...[
             const SizedBox(height: 32),
-            Text('Recommendations', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            Text(
+              'MORE LIKE THIS',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.0,
+                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              ),
+            ),
+            const SizedBox(height: 14),
             SizedBox(
               height: 180,
               child: ListView.separated(
@@ -251,18 +345,26 @@ class _DetailScreenState extends State<DetailScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (_, i) {
                   final simItem = _similar[i];
-                  final hasImage = simItem.fullPosterUrl.isNotEmpty;
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(CupertinoPageRoute(builder: (_) => DetailScreen(item: simItem))),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: hasImage
-                          ? CachedNetworkImage(imageUrl: simItem.fullPosterUrl, fit: BoxFit.cover, width: 120)
-                          : Container(
-                              width: 120,
-                              color: CupertinoColors.systemGrey6,
-                              child: const Icon(CupertinoIcons.film),
-                            ),
+                    child: Container(
+                      width: 120,
+                      decoration: AppTheme.brutalistDecoration(
+                        context: context,
+                        color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                        borderRadius: 4.0,
+                        shadowOffset: 2.5,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: simItem.fullPosterUrl.isNotEmpty
+                            ? CachedNetworkImage(imageUrl: simItem.fullPosterUrl, fit: BoxFit.cover, width: 120)
+                            : Container(
+                                width: 120,
+                                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE5E5EA),
+                                child: const Icon(FluentIcons.movies_and_tv_24_regular),
+                              ),
+                      ),
                     ),
                   );
                 },
@@ -303,115 +405,145 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final progress = (shrinkOffset / (expandedHeight - 88)).clamp(0.0, 1.0);
+    final bgColor = isDark ? AppTheme.pureBlack : AppTheme.creamBg;
     
     return Stack(
       fit: StackFit.expand,
       children: [
         // Background Image
         Opacity(
-          opacity: (1 - progress).clamp(0, 1),
+          opacity: (1 - progress * 1.3).clamp(0.0, 1.0),
           child: item.fullBackdropUrl.isNotEmpty
               ? CachedNetworkImage(imageUrl: item.fullBackdropUrl, fit: BoxFit.cover)
-              : Container(color: CupertinoColors.black),
+              : Container(color: const Color(0xFF111111)),
         ),
         // Gradient overlay
-        Opacity(
-          opacity: (1 - progress).clamp(0, 1),
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x00000000), Color(0xCC000000)],
-                stops: [0.6, 1.0],
-              ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                CupertinoColors.black.withValues(alpha: 0.25 * (1 - progress)),
+                CupertinoColors.transparent,
+                bgColor.withValues(alpha: 0.7 + (0.3 * progress)),
+                bgColor,
+              ],
+              stops: const [0.0, 0.35, 0.75, 1.0],
             ),
           ),
         ),
         
+        // Floating Thumbnail/Poster on the Banner
+        if (item.fullPosterUrl.isNotEmpty)
+          Positioned(
+            left: 20,
+            bottom: 24,
+            child: Opacity(
+              opacity: (1 - progress * 1.5).clamp(0.0, 1.0),
+              child: Container(
+                width: 110,
+                height: 165,
+                decoration: AppTheme.brutalistDecoration(
+                  context: context,
+                  color: isDark ? AppTheme.darkSlate : CupertinoColors.white,
+                  borderRadius: 4.0,
+                  shadowOffset: 3.0,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4.0),
+                  child: CachedNetworkImage(
+                    imageUrl: item.fullPosterUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, _) => Container(color: CupertinoColors.systemGrey6),
+                    errorWidget: (_, _, _) => const Icon(FluentIcons.image_24_regular),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        
         // Blurred bar when shrunk
-        if (progress > 0.1)
+        if (progress > 0.3)
           ClipRect(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10 * progress, sigmaY: 10 * progress),
+              filter: ImageFilter.blur(sigmaX: 12 * progress, sigmaY: 12 * progress),
               child: Container(
-                color: theme.barBackgroundColor.withValues(alpha: progress * 0.8),
+                color: theme.barBackgroundColor.withValues(alpha: (progress - 0.3) * 1.2),
               ),
             ),
           ),
           
-        // Top Bar Content
+        // Top Bar
         Positioned(
           top: 0,
           left: 0,
           right: 0,
           child: SafeArea(
             bottom: false,
-            child: Container(
+            child: SizedBox(
               height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: onBack,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isDark ? CupertinoColors.black.withValues(alpha: 0.3) : CupertinoColors.white.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: onBack,
+                      child: Container(
+                        width: 38, height: 38,
+                        decoration: AppTheme.brutalistDecoration(
+                          context: context,
+                          color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
+                          borderRadius: 4.0,
+                          shadowOffset: 2.0,
+                        ),
+                        child: Icon(
+                          FluentIcons.chevron_left_24_regular,
+                          size: 22,
+                          color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                        ),
                       ),
-                      child: const Icon(CupertinoIcons.back, size: 24, color: CupertinoColors.white),
                     ),
-                  ),
-                  if (progress > 0.8)
                     Expanded(
-                      child: Text(
-                        item.title,
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? CupertinoColors.white : CupertinoColors.black),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ).animate().fadeIn(duration: 200.ms),
+                      child: progress > 0.6
+                          ? Text(
+                              item.title.toUpperCase(),
+                              style: GoogleFonts.spaceGrotesk(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ).animate().fadeIn(duration: 180.ms)
+                          : const SizedBox.shrink(),
                     ),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: onBookmark,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isDark ? CupertinoColors.black.withValues(alpha: 0.3) : CupertinoColors.white.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart, 
-                        size: 24, 
-                        color: isFavorite ? CupertinoColors.systemRed : CupertinoColors.white
+                    GestureDetector(
+                      onTap: onBookmark,
+                      child: Container(
+                        width: 38, height: 38,
+                        decoration: AppTheme.brutalistDecoration(
+                          context: context,
+                          color: isDark ? AppTheme.darkSlate : (isFavorite ? AppTheme.neonYellow : CupertinoColors.white),
+                          borderRadius: 4.0,
+                          shadowOffset: 2.0,
+                        ),
+                        child: Icon(
+                          isFavorite ? FluentIcons.heart_24_filled : FluentIcons.heart_24_regular,
+                          size: 20,
+                          color: isFavorite 
+                              ? CupertinoColors.black 
+                              : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
-        
-        // Large Title at bottom of expanded area
-        if (progress < 0.8)
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 20,
-            child: Opacity(
-              opacity: (1 - progress * 1.5).clamp(0, 1),
-              child: Text(
-                item.title,
-                style: GoogleFonts.outfit(color: CupertinoColors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                maxLines: 2,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -426,44 +558,52 @@ class _DetailHeaderDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant _DetailHeaderDelegate oldDelegate) => true;
 }
 
-class _MetaItem extends StatelessWidget {
-  final IconData? icon;
-  final String label;
-  final Color? color;
-  const _MetaItem({this.icon, required this.label, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (icon != null) Icon(icon, size: 14, color: color ?? CupertinoColors.systemGrey),
-        if (icon != null) const SizedBox(width: 4),
-        Text(label, style: GoogleFonts.outfit(color: CupertinoColors.systemGrey, fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-}
-
 class _DetailActionBtn extends StatelessWidget {
   final IconData icon;
+  final String label;
   final VoidCallback onPressed;
   final bool active;
-  const _DetailActionBtn({required this.icon, required this.onPressed, this.active = false});
+  const _DetailActionBtn({required this.icon, required this.label, required this.onPressed, this.active = false});
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
+    final isDark = CupertinoTheme.brightnessOf(context) == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: onPressed,
       child: Container(
-        width: 44,
         height: 44,
-        decoration: BoxDecoration(
-          color: active ? theme.primaryColor.withValues(alpha: 0.1) : CupertinoColors.systemGrey6,
-          shape: BoxShape.circle,
+        decoration: AppTheme.brutalistDecoration(
+          context: context,
+          color: active 
+              ? AppTheme.neonYellow 
+              : (isDark ? AppTheme.darkSlate : CupertinoColors.white),
+          borderRadius: 4.0,
+          shadowOffset: 2.5,
         ),
-        child: Icon(icon, color: active ? theme.primaryColor : CupertinoColors.systemGrey, size: 20),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: active 
+                  ? CupertinoColors.black 
+                  : (isDark ? CupertinoColors.white : CupertinoColors.black),
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.spaceGrotesk(
+                color: active 
+                    ? CupertinoColors.black 
+                    : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -478,6 +618,7 @@ class _CastMember extends StatelessWidget {
     final theme = CupertinoTheme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final hasImage = cast.fullProfileUrl != null && cast.fullProfileUrl.isNotEmpty;
+    final borderColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Column(
       children: [
@@ -486,7 +627,11 @@ class _CastMember extends StatelessWidget {
           height: 70,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isDark ? CupertinoColors.systemGrey6 : CupertinoColors.systemGrey5,
+            border: Border.all(
+              color: borderColor,
+              width: 2.0,
+            ),
+            color: isDark ? AppTheme.darkSlate : AppTheme.neonYellow,
             image: hasImage
                 ? DecorationImage(
                     image: CachedNetworkImageProvider(cast.fullProfileUrl),
@@ -496,16 +641,21 @@ class _CastMember extends StatelessWidget {
           ),
           child: !hasImage
               ? Icon(
-                  CupertinoIcons.person_fill,
+                  FluentIcons.person_24_filled,
                   size: 30,
-                  color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey3,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
                 )
               : null,
         ),
         const SizedBox(height: 8),
         SizedBox(
           width: 80,
-          child: Text(cast.name, style: GoogleFonts.outfit(fontSize: 12), textAlign: TextAlign.center, maxLines: 2),
+          child: Text(
+            cast.name, 
+            style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold), 
+            textAlign: TextAlign.center, 
+            maxLines: 2
+          ),
         ),
       ],
     );
@@ -534,7 +684,6 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
   Future<void> _loadEpisodes() async {
     setState(() => _loading = true);
     if (widget.item.mediaType == 'anime') {
-       // Anime episodes are already loaded in getAnimeDetail
        setState(() {
          _episodes = widget.item.seasons.isNotEmpty ? widget.item.seasons[0].episodes ?? [] : [];
          _loading = false;
@@ -543,10 +692,10 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
     }
     final season = await ApiService.instance.getTvSeasonDetail(widget.item.id, _selectedSeason);
     if (mounted) {
-      setState(() {
-        _episodes = season?.episodes ?? [];
-        _loading = false;
-      });
+       setState(() {
+         _episodes = season?.episodes ?? [];
+         _loading = false;
+       });
     }
   }
 
@@ -563,8 +712,29 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Episodes', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold)),
-                CupertinoButton(padding: EdgeInsets.zero, onPressed: () => Navigator.pop(context), child: const Icon(CupertinoIcons.xmark_circle_fill)),
+                Text(
+                  'Episodes', 
+                  style: GoogleFonts.inter(
+                    fontSize: 22, 
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                  )
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      FluentIcons.dismiss_24_regular, 
+                      size: 18,
+                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -577,13 +747,31 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                   itemBuilder: (_, i) {
                     final s = widget.item.seasons[i];
                     final active = _selectedSeason == s.seasonNumber;
-                    return CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      onPressed: () {
+                    return GestureDetector(
+                      onTap: () {
                         setState(() => _selectedSeason = s.seasonNumber);
                         _loadEpisodes();
                       },
-                      child: Text(s.name, style: TextStyle(fontWeight: active ? FontWeight.bold : FontWeight.normal, color: active ? CupertinoTheme.of(context).primaryColor : CupertinoColors.systemGrey)),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: active 
+                              ? AppTheme.neonYellow 
+                              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            s.name, 
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600, 
+                              fontSize: 12,
+                              color: active ? CupertinoColors.black : (isDark ? CupertinoColors.white : CupertinoColors.black),
+                            )
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -594,7 +782,10 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                   ? const Center(child: CupertinoActivityIndicator())
                   : ListView.separated(
                       itemCount: _episodes.length,
-                      separatorBuilder: (_, __) => Container(height: 0.5, color: CupertinoColors.separator),
+                      separatorBuilder: (_, __) => Container(
+                        height: 0.5, 
+                        color: isDark ? const Color(0x33FFFFFF) : const Color(0x33000000),
+                      ),
                       itemBuilder: (_, i) {
                         final ep = _episodes[i];
                         return CupertinoButton(
@@ -621,14 +812,50 @@ class _EpisodeSheetState extends State<_EpisodeSheet> {
                           },
                           child: Row(
                             children: [
-                              ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(imageUrl: ep.fullStillUrl, width: 100, height: 60, fit: BoxFit.cover, errorWidget: (_, __, ___) => Container(width: 100, height: 60, color: isDark ? CupertinoColors.systemGrey6 : CupertinoColors.systemGrey))),
-                              const SizedBox(width: 12),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0), 
+                                child: CachedNetworkImage(
+                                  imageUrl: ep.fullStillUrl, 
+                                  width: 100, 
+                                  height: 60, 
+                                  fit: BoxFit.cover, 
+                                  errorWidget: (_, __, ___) => Container(
+                                    width: 100, 
+                                    height: 60, 
+                                    color: isDark ? CupertinoColors.systemGrey6 : CupertinoColors.systemGrey,
+                                    child: Icon(
+                                      FluentIcons.movies_and_tv_24_regular,
+                                      color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                      size: 20,
+                                    ),
+                                  )
+                                )
+                              ),
+                              const SizedBox(width: 16),
                               Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text('${ep.episodeNumber}. ${ep.name}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? CupertinoColors.white : CupertinoColors.black)),
-                                  const SizedBox(height: 4),
-                                  Text(ep.overview ?? '', style: GoogleFonts.outfit(fontSize: 12, color: CupertinoColors.systemGrey), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                ]),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start, 
+                                  children: [
+                                    Text(
+                                      '${ep.episodeNumber}. ${ep.name}', 
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600, 
+                                        fontSize: 13, 
+                                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                                      )
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      ep.overview ?? '', 
+                                      style: const TextStyle(
+                                        fontSize: 11, 
+                                        color: CupertinoColors.systemGrey,
+                                      ), 
+                                      maxLines: 2, 
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),

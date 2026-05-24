@@ -7,7 +7,6 @@ import 'watch_history.dart';
 import 'bookmark_service.dart';
 import 'collection_service.dart';
 import 'settings_service.dart';
-import 'music_history.dart';
 
 class SyncService extends ChangeNotifier {
   SyncService._();
@@ -34,8 +33,6 @@ class SyncService extends ChangeNotifier {
         syncProgress(),
         syncCollections(),
         syncSettings(),
-        syncMusicPlaylists(),
-        syncMusicHistory(),
       ]);
       _lastSync = DateTime.now();
       debugPrint('✅ [SYNC] Full data sync completed.');
@@ -63,10 +60,8 @@ class SyncService extends ChangeNotifier {
         
         if (data['history'] != null) await WatchHistory.restore(data['history']);
         if (data['bookmarks'] != null) await BookmarkService.restore(data['bookmarks']);
-        if (data['music_history'] != null) await MusicHistory.restore(data['music_history']);
         
         CollectionService.instance.restore(
-          data['playlists'] ?? [],
           data['collections'] ?? [],
           data['progress'] ?? {},
         );
@@ -114,20 +109,8 @@ class SyncService extends ChangeNotifier {
         'theme': settings.themeMode == 1 ? 'dark' : (settings.themeMode == 2 ? 'light' : 'system'),
         'accent_color': settings.accentColor?.value,
         'custom_font': settings.customFont,
-        'auto_queue': settings.autoQueue,
-        'autoplay': settings.autoQueue,
       }
     });
-  }
-
-  Future<void> syncMusicPlaylists() async {
-    final playlists = CollectionService.instance.playlists;
-    await _postSync('/sync/music/playlists', {'playlists': playlists.map((e) => e.toJson()).toList()});
-  }
-
-  Future<void> syncMusicHistory() async {
-    final history = MusicHistory.history;
-    await _postSync('/sync/music/history', {'history': history.map((e) => e.toJson()).toList()});
   }
 
   Future<void> _postSync(String endpoint, Map<String, dynamic> body) async {

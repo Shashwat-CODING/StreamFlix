@@ -35,27 +35,35 @@ class StreamSource {
   static const String kDefaultOrigin = 'https://rivestream.app';
 
   String get resolvedReferer =>
-      (referer != null && referer!.isNotEmpty) ? referer! : kDefaultReferer;
+      serverId == 9 ? 'https://cinemaos.live' : ((referer != null && referer!.isNotEmpty) ? referer! : kDefaultReferer);
   String get resolvedOrigin =>
-      (origin != null && origin!.isNotEmpty) ? origin! : kDefaultOrigin;
+      serverId == 9 ? 'https://cinemaos.live' : ((origin != null && origin!.isNotEmpty) ? origin! : kDefaultOrigin);
 
   StreamSource({
     required this.quality,
     required this.url,
     required this.source,
     required this.serverId,
-    this.referer,
-    this.origin,
+    String? referer,
+    String? origin,
     this.size,
     this.subtitles,
-    this.headers,
+    Map<String, String>? headers,
     this.priority = 10,
     this.noHeaders = false,
     this.fileSize = 0,
     this.sizeText,
     this.type,
     this.language,
-  });
+  })  : this.referer = serverId == 9 ? 'https://cinemaos.live' : referer,
+        this.origin = serverId == 9 ? 'https://cinemaos.live' : origin,
+        this.headers = serverId == 9
+            ? {
+                ...?headers,
+                'Referer': 'https://cinemaos.live',
+                'Origin': 'https://cinemaos.live',
+              }
+            : headers;
 
   factory StreamSource.fromJson(Map<String, dynamic> json) {
     var rawQuality = json['quality'];

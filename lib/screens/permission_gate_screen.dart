@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/permission_service.dart';
@@ -64,7 +65,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
       permission: Permission.notification,
       label: 'Notifications',
       description: 'Show download progress and alerts',
-      icon: CupertinoIcons.bell_fill,
+      icon: FluentIcons.alert_24_filled,
     ));
 
     // We no longer require storage permissions as we use scoped storage
@@ -75,7 +76,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
       permission: Permission.ignoreBatteryOptimizations,
       label: 'Background Access',
       description: 'Keep downloads running when the app is minimized',
-      icon: CupertinoIcons.battery_charging,
+      icon: FluentIcons.battery_charge_24_regular,
     ));
 
     if (!mounted) return;
@@ -200,7 +201,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                         ),
                       ),
                       child: const Icon(
-                        CupertinoIcons.lock_shield_fill,
+                        FluentIcons.shield_keyhole_24_filled,
                         color: Color(0xFFE50914),
                         size: 42,
                       ),
@@ -270,7 +271,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(CupertinoIcons.settings_solid, size: 20, color: CupertinoColors.white),
+                                    const Icon(FluentIcons.settings_24_filled, size: 20, color: CupertinoColors.white),
                                     const SizedBox(width: 8),
                                     Text('Open App Settings', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: CupertinoColors.white)),
                                   ],
@@ -283,7 +284,7 @@ class _PermissionGateScreenState extends State<PermissionGateScreen>
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(CupertinoIcons.checkmark_shield_fill, size: 20, color: CupertinoColors.white),
+                                    const Icon(FluentIcons.shield_checkmark_24_filled, size: 20, color: CupertinoColors.white),
                                     const SizedBox(width: 8),
                                     Text('Grant All Permissions', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: CupertinoColors.white)),
                                   ],
@@ -340,13 +341,13 @@ class _PermissionTile extends StatelessWidget {
     IconData indicatorIcon;
     if (granted) {
       indicatorColor = const Color(0xFF4CAF50);
-      indicatorIcon = CupertinoIcons.checkmark_circle_fill;
+      indicatorIcon = FluentIcons.checkmark_circle_24_filled;
     } else if (denied) {
       indicatorColor = const Color(0xFFE57373);
-      indicatorIcon = CupertinoIcons.xmark_circle_fill;
+      indicatorIcon = FluentIcons.dismiss_circle_24_filled;
     } else {
       indicatorColor = CupertinoColors.white.withValues(alpha: 0.24);
-      indicatorIcon = CupertinoIcons.circle;
+      indicatorIcon = FluentIcons.circle_24_regular;
     }
 
     return Container(
